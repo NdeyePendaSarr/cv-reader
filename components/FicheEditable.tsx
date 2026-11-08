@@ -11,6 +11,7 @@
  * Le fichier est créé dans le navigateur : aucun appel réseau, rien n'est stocké.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import ComparaisonOffre from "@/components/ComparaisonOffre";
 import DialogueAVerifier from "@/components/DialogueAVerifier";
 import {
   champsAVerifierRestants,
@@ -161,12 +162,15 @@ export default function FicheEditable({
   aVerifier,
   modele,
   source,
+  criteresExemple = [],
 }: {
   /** Fiche extraite, telle que reçue : sert de référence pour compter les corrections. */
   fiche: FicheCV;
   aVerifier: string[];
   modele: string;
   source: string;
+  /** Critères de samples/offre.md, proposés par « Utiliser les critères d'exemple ». */
+  criteresExemple?: readonly string[];
 }) {
   const [edition, setEdition] = useState<FicheEnEdition>(() => depuisFiche(fiche));
   const [confirmes, setConfirmes] = useState<ReadonlySet<string>>(new Set());
@@ -578,6 +582,15 @@ export default function FicheEditable({
           )}
         </div>
       </form>
+
+      {/* La comparaison n'est possible qu'après la validation, et part de la fiche validée. */}
+      {validee ? (
+        <ComparaisonOffre key={validee.valideeLe} fiche={validee.fiche} criteresExemple={criteresExemple} />
+      ) : (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          La comparaison avec une offre devient possible après la validation de la fiche.
+        </p>
+      )}
 
       {dialogue && <DialogueAVerifier nombre={restants.length} surRevenir={revenirVerifier} surValider={finaliser} />}
     </article>

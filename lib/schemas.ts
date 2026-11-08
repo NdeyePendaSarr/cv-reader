@@ -70,19 +70,48 @@ export const FicheValideeSchema = z.object({
 });
 export type FicheValidee = z.infer<typeof FicheValideeSchema>;
 
+const CritereBase = z.object({
+  critere: z.string().trim().min(1),
+  statut: z.enum(["present", "non_trouve"]),
+  justification: Texte, // extrait recopié de la fiche validée
+});
+
+/** « Présent » exige une justification ; « non trouvé » n'en a pas. */
+const justificationCoherente = {
+  test: (r: { statut: string; justification: string | null }) => (r.statut === "present") === (r.justification !== null),
+  error: "Une justification est exigée si et seulement si le critère est présent",
+};
+
 /** Résultat pour un critère de l'offre. Aucun score, aucun verdict. */
-export const CritereResultatSchema = z
-  .object({
-    critere: z.string().trim().min(1),
-    statut: z.enum(["present", "non_trouve"]),
-    justification: Texte, // extrait recopié de la fiche validée
-  })
-  .refine((r) => (r.statut === "present") === (r.justification !== null), {
-    error: "Une justification est exigée si et seulement si le critère est présent",
-  });
+export const CritereResultatSchema = CritereBase.refine(justificationCoherente.test, { error: justificationCoherente.error });
 export type CritereResultat = z.infer<typeof CritereResultatSchema>;
 
+/** Sortie attendue du modèle (outil enregistrer_comparaison). */
 export const ComparaisonSchema = z.object({
   resultats: z.array(CritereResultatSchema).min(1).max(20),
 });
 export type Comparaison = z.infer<typeof ComparaisonSchema>;
+
+/** Corps de POST /api/compare : la fiche validée et de 1 à 20 critères de 200 caractères au plus. */
+export const RequeteComparaisonSchema = z.object({
+  fiche: FicheCVSchema,
+  criteres: z.array(z.string().trim().min(1).max(200)).min(1).max(20),
+});
+export type RequeteComparaison = z.infer<typeof RequeteComparaisonSchema>;
+
+/**
+ * Résultat renvoyé à l'interface : celui du modèle après le contrôle anti-invention du serveur.
+ * `justificationRejetee` : le modèle avait répondu « présent », mais sa justification est
+ * introuvable dans la fiche ; le critère est donc passé en « non trouvé ».
+ */
+export const CritereAfficheSchema = CritereBase.extend({ justificationRejetee: z.boolean() }).refine(
+  justificationCoherente.test,
+  { error: justificationCoherente.error },
+);
+export type CritereAffiche = z.infer<typeof CritereAfficheSchema>;
+
+/** Réponse 200 de POST /api/compare. Aucun score, aucun total. */
+export const ReponseComparaisonSchema = z.object({
+  resultats: z.array(CritereAfficheSchema).min(1).max(20),
+});
+export type ReponseComparaison = z.infer<typeof ReponseComparaisonSchema>;

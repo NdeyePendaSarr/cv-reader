@@ -1,5 +1,5 @@
 /**
- * Client navigateur de la route POST /api/extract.
+ * Client navigateur des routes POST /api/extract et POST /api/compare.
  *
  * Il contrôle le fichier avant l'envoi (type et taille), puis lit la réponse avec
  * prudence : au-delà de 4,5 Mo, Vercel répond lui-même 413 avec une page qui n'est
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { formaterDelai } from "@/lib/delai";
 import type { CodeErreur, ReponseErreur } from "@/lib/erreurs";
 import { TAILLE_MAX_OCTETS } from "@/lib/limites";
-import { FicheCVSchema } from "@/lib/schemas";
+import { FicheCVSchema, ReponseComparaisonSchema, type FicheCV, type ReponseComparaison } from "@/lib/schemas";
 
 /** Réponse de la route en cas de succès, validée par Zod avant tout affichage. */
 export const ReponseExtractionSchema = z.object({
@@ -120,10 +120,35 @@ export async function envoyerCV(
 
   const formulaire = new FormData();
   formulaire.append("file", fichier);
+  return appelerApi(
+    envoi,
+    "/api/extract",
+    { method: "POST", body: formulaire },
+    ReponseExtractionSchema,
+    "La fiche reçue est incomplète ou mal formée. Réessayez, ou choisissez un CV fictif.",
+  );
+}
 
+/** Résultat d'un appel à une route de l'API, après lecture prudente de la réponse. */
+export type ResultatApi<T> =
+  | { ok: true; donnees: T }
+  | { ok: false; code: CodeErreur | CodeClient; message: string; attenteSecondes?: number };
+
+/**
+ * Appelle une route et lit sa réponse avec prudence : JSON lu seulement s'il est annoncé,
+ * erreurs `{ code, message }` transmises, réponses non JSON (413 de Vercel…) traduites en
+ * message clair, et réponse 200 validée par Zod avant tout affichage.
+ */
+async function appelerApi<T>(
+  envoi: typeof fetch,
+  url: string,
+  options: RequestInit,
+  schema: z.ZodType<T>,
+  messageMalForme: string,
+): Promise<ResultatApi<T>> {
   let reponse: Response;
   try {
-    reponse = await envoi("/api/extract", { method: "POST", body: formulaire });
+    reponse = await envoi(url, options);
   } catch {
     return {
       ok: false,
@@ -133,7 +158,7 @@ export async function envoyerCV(
   }
 
   const attente = reponse.status === 429 ? lireAttente(reponse) : undefined;
-  const echec = (code: CodeErreur | CodeClient, message: string): ResultatEnvoi =>
+  const echec = (code: CodeErreur | CodeClient, message: string): ResultatApi<T> =>
     attente === undefined ? { ok: false, code, message } : { ok: false, code, message, attenteSecondes: attente };
 
   // On ne lit du JSON que si le serveur annonce du JSON.
@@ -154,13 +179,23 @@ export async function envoyerCV(
     return echec(codeSansJson(reponse.status), messageSansJson(reponse.status, attente));
   }
 
-  // La fiche est validée par Zod avant tout affichage, même si le serveur l'a déjà fait.
-  const donnees = ReponseExtractionSchema.safeParse(corps);
-  if (!donnees.success) {
-    return echec(
-      "REPONSE_INATTENDUE",
-      "La fiche reçue est incomplète ou mal formée. Réessayez, ou choisissez un CV fictif.",
-    );
-  }
+  // La réponse est validée par Zod avant tout affichage, même si le serveur l'a déjà fait.
+  const donnees = schema.safeParse(corps);
+  if (!donnees.success) return echec("REPONSE_INATTENDUE", messageMalForme);
   return { ok: true, donnees: donnees.data };
+}
+
+/** Compare la fiche validée aux critères de l'offre (POST /api/compare). */
+export async function comparerFiche(
+  fiche: FicheCV,
+  criteres: string[],
+  envoi: typeof fetch = (...args) => fetch(...args),
+): Promise<ResultatApi<ReponseComparaison>> {
+  return appelerApi(
+    envoi,
+    "/api/compare",
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fiche, criteres }) },
+    ReponseComparaisonSchema,
+    "Le résultat de la comparaison est incomplet ou mal formé. Réessayez.",
+  );
 }

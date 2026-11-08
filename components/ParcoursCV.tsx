@@ -20,7 +20,14 @@ interface FicheAffichee {
   numero: number;
 }
 
-export default function ParcoursCV({ disponibles }: { disponibles: readonly string[] }) {
+export default function ParcoursCV({
+  disponibles,
+  criteresExemple,
+}: {
+  disponibles: readonly string[];
+  /** Critères de samples/offre.md, lus à la compilation de la page. */
+  criteresExemple: readonly string[];
+}) {
   const [affichee, setAffichee] = useState<FicheAffichee | null>(null);
   const [chargement, setChargement] = useState(false);
   const [erreurFictif, setErreurFictif] = useState<string | null>(null);
@@ -68,6 +75,7 @@ export default function ParcoursCV({ disponibles }: { disponibles: readonly stri
           aVerifier={affichee.aVerifier}
           modele={affichee.modele}
           source={affichee.source}
+          criteresExemple={criteresExemple}
         />
       )}
     </>

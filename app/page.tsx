@@ -1,10 +1,11 @@
 /**
  * Page d'accueil : présentation, avertissement de démo, puis parcours du CV
- * (dépôt ou CV fictif, puis fiche en lecture seule). Validation et comparaison arrivent en T3 et T4.
+ * (dépôt ou CV fictif, puis validation de la fiche et comparaison avec une offre).
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ParcoursCV from "@/components/ParcoursCV";
+import { extraireCriteres } from "@/lib/offre";
 import { CV_FICTIFS } from "@/lib/samples";
 
 /**
@@ -19,6 +20,15 @@ function cvFictifsDisponibles(): string[] {
     return [];
   }
   return CV_FICTIFS.map((cv) => cv.id).filter((id) => fichiers.includes(`${id}.json`));
+}
+
+/** Critères de l'offre de démonstration (samples/offre.md), lus à la compilation : aucun appel réseau. */
+function criteresExemple(): string[] {
+  try {
+    return extraireCriteres(readFileSync(join(process.cwd(), "samples", "offre.md"), "utf8"));
+  } catch {
+    return [];
+  }
 }
 
 export default function Accueil() {
@@ -45,7 +55,7 @@ export default function Accueil() {
           </p>
         </header>
 
-        <ParcoursCV disponibles={cvFictifsDisponibles()} />
+        <ParcoursCV disponibles={cvFictifsDisponibles()} criteresExemple={criteresExemple()} />
       </main>
     </div>
   );

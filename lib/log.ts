@@ -20,6 +20,10 @@ export interface LigneJournal {
   sortiesInvalides: number;
   /** Nombre de valeurs « à vérifier » (un nombre, jamais les valeurs). */
   aVerifier?: number;
+  /** Comparaison : nombre de justifications rejetées par le contrôle anti-invention. */
+  justificationsRejetees?: number;
+  /** Comparaison : nombre de critères envoyés (jamais leur texte). */
+  criteres?: number;
 }
 
 /** Champs autorisés, dans l'ordre d'écriture. */
@@ -34,6 +38,8 @@ const CHAMPS: readonly (keyof LigneJournal)[] = [
   "sansAppelOutil",
   "sortiesInvalides",
   "aVerifier",
+  "criteres",
+  "justificationsRejetees",
 ];
 
 /** Construit la ligne JSON, sans aucun champ hors de la liste autorisée. */

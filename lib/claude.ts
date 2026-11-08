@@ -77,41 +77,111 @@ export function creerClient(): ClientMessages {
   return new Anthropic({ apiKey: lireVariable("ANTHROPIC_API_KEY") });
 }
 
-/** Résultat de l'analyse d'une réponse : la fiche, ou le message d'erreur à renvoyer au modèle. */
-type Analyse =
-  | { ok: true; fiche: FicheCV }
-  | { ok: false; sansAppel: boolean; retour: Anthropic.ContentBlockParam };
+/** Verdict de la validation d'une entrée d'outil : les données, ou les erreurs à renvoyer au modèle. */
+export type Verification<T> = { ok: true; donnees: T } | { ok: false; erreurs: string };
 
-function analyserReponse(reponse: Anthropic.Message): Analyse {
-  const appel = reponse.content.find(
-    (bloc): bloc is Anthropic.ToolUseBlock => bloc.type === "tool_use" && bloc.name === NOM_OUTIL,
-  );
-  if (!appel) {
-    return {
-      ok: false,
-      sansAppel: true,
-      retour: {
-        type: "text",
-        text: `Tu n'as pas appelé l'outil ${NOM_OUTIL}. Appelle-le maintenant, avec la fiche complète du CV.`,
-      },
-    };
-  }
-  const resultat = FicheCVSchema.safeParse(appel.input);
-  if (resultat.success) return { ok: true, fiche: resultat.data };
-  const erreurs = resultat.error.issues
-    .map((i) => `- ${i.path.join(".") || "(racine)"} : ${i.message}`)
-    .join("\n");
-  return {
-    ok: false,
-    sansAppel: false,
-    // Un appel d'outil doit recevoir son tool_result : on y place les erreurs de validation.
-    retour: {
-      type: "tool_result",
-      tool_use_id: appel.id,
-      is_error: true,
-      content: `La fiche ne respecte pas le schéma. Corrige ces champs, puis rappelle l'outil ${NOM_OUTIL} :\n${erreurs}`,
-    },
+/** Liste lisible des erreurs Zod, une par ligne : « - contact.email : … ». */
+export function listerErreursZod(issues: readonly { path: PropertyKey[]; message: string }[]): string {
+  return issues.map((i) => `- ${i.path.map(String).join(".") || "(racine)"} : ${i.message}`).join("\n");
+}
+
+/** Un appel au modèle qui doit répondre en appelant un outil. */
+export interface AppelOutil<T> {
+  modele: string;
+  system: string;
+  outil: Anthropic.Tool;
+  /** Contenu du premier message de l'utilisateur. */
+  contenu: Anthropic.ContentBlockParam[];
+  /** Validation de l'entrée de l'outil : Zod, et tout contrôle propre à l'appel. */
+  valider: (entree: unknown) => Verification<T>;
+  /** Ce que doit produire l'outil, rappelé au modèle s'il ne l'a pas appelé (ex. « la fiche complète du CV »). */
+  attendu: string;
+  /** Message montré à l'utilisateur si la sortie reste invalide après le nouvel essai. */
+  messageEchec: string;
+}
+
+/**
+ * Mécanique commune à l'extraction et à la comparaison :
+ * appel avec l'outil en `tool_choice: auto` (non strict) → validation de son entrée →
+ * en cas d'échec (entrée invalide, ou pas d'appel), un seul nouvel essai avec les erreurs →
+ * second échec : EXTRACTION_IMPOSSIBLE (422). Erreur de l'API : MODELE_INDISPONIBLE (502).
+ * Ni `temperature`, ni `top_p`, ni `top_k` ; réflexion et effort par défaut.
+ */
+export async function appelerOutil<T>(
+  appel: AppelOutil<T>,
+  client: ClientMessages,
+): Promise<{ donnees: T; mesures: Mesures }> {
+  const debut = Date.now();
+  const mesures: Mesures = {
+    modele: appel.modele,
+    dureeMs: 0,
+    jetonsEntree: 0,
+    jetonsSortie: 0,
+    nouvelEssai: false,
+    sansAppelOutil: 0,
+    sortiesInvalides: 0,
   };
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: appel.contenu }];
+  const nom = appel.outil.name;
+
+  for (let essai = 1; essai <= 2; essai++) {
+    let reponse: Anthropic.Message;
+    try {
+      reponse = await client.messages.create({
+        model: appel.modele,
+        max_tokens: MAX_JETONS,
+        system: appel.system,
+        tools: [appel.outil],
+        tool_choice: { type: "auto" },
+        messages,
+      });
+    } catch (erreur) {
+      mesures.dureeMs = Date.now() - debut;
+      if (erreur instanceof Anthropic.APIError) {
+        throw new ErreurExtraction(
+          "MODELE_INDISPONIBLE",
+          "Le service d'analyse ne répond pas pour le moment. Réessayez dans quelques minutes.",
+          mesures,
+        );
+      }
+      throw erreur;
+    }
+
+    mesures.jetonsEntree += reponse.usage.input_tokens;
+    mesures.jetonsSortie += reponse.usage.output_tokens;
+
+    const outilAppele = reponse.content.find(
+      (bloc): bloc is Anthropic.ToolUseBlock => bloc.type === "tool_use" && bloc.name === nom,
+    );
+    let retour: Anthropic.ContentBlockParam;
+    if (!outilAppele) {
+      mesures.sansAppelOutil += 1;
+      retour = { type: "text", text: `Tu n'as pas appelé l'outil ${nom}. Appelle-le maintenant, avec ${appel.attendu}.` };
+    } else {
+      const verdict = appel.valider(outilAppele.input);
+      if (verdict.ok) {
+        mesures.dureeMs = Date.now() - debut;
+        return { donnees: verdict.donnees, mesures };
+      }
+      mesures.sortiesInvalides += 1;
+      // Un appel d'outil doit recevoir son tool_result : on y place les erreurs de validation.
+      retour = {
+        type: "tool_result",
+        tool_use_id: outilAppele.id,
+        is_error: true,
+        content: `La sortie ne respecte pas le schéma. Corrige ces points, puis rappelle l'outil ${nom} :\n${verdict.erreurs}`,
+      };
+    }
+
+    if (essai === 1) {
+      // Un seul nouvel essai : la réponse est rendue telle quelle, suivie des erreurs.
+      mesures.nouvelEssai = true;
+      messages.push({ role: "assistant", content: reponse.content }, { role: "user", content: [retour] });
+    }
+  }
+
+  mesures.dureeMs = Date.now() - debut;
+  throw new ErreurExtraction("EXTRACTION_IMPOSSIBLE", appel.messageEchec, mesures);
 }
 
 /**
@@ -123,75 +193,27 @@ export async function extraire(
   modele: string,
   client: ClientMessages = creerClient(),
 ): Promise<ResultatExtraction> {
-  const debut = Date.now();
-  const mesures: Mesures = {
-    modele,
-    dureeMs: 0,
-    jetonsEntree: 0,
-    jetonsSortie: 0,
-    nouvelEssai: false,
-    sansAppelOutil: 0,
-    sortiesInvalides: 0,
-  };
-
-  const messages: Anthropic.MessageParam[] = [
+  const { donnees, mesures } = await appelerOutil<FicheCV>(
     {
-      role: "user",
-      content: [
+      modele,
+      system: CONSIGNE_SYSTEME,
+      outil: OUTIL,
+      contenu: [
         {
           type: "document",
           source: { type: "base64", media_type: "application/pdf", data: Buffer.from(pdf).toString("base64") },
         },
         { type: "text", text: "Voici le CV. Remplis sa fiche." },
       ],
+      valider: (entree) => {
+        const r = FicheCVSchema.safeParse(entree);
+        return r.success ? { ok: true, donnees: r.data } : { ok: false, erreurs: listerErreursZod(r.error.issues) };
+      },
+      attendu: "la fiche complète du CV",
+      messageEchec:
+        "Les informations de ce CV n'ont pas pu être extraites de façon fiable. Essayez un autre fichier, ou un CV fictif.",
     },
-  ];
-
-  for (let essai = 1; essai <= 2; essai++) {
-    let reponse: Anthropic.Message;
-    try {
-      reponse = await client.messages.create({
-        model: modele,
-        max_tokens: MAX_JETONS,
-        system: CONSIGNE_SYSTEME,
-        tools: [OUTIL],
-        tool_choice: { type: "auto" },
-        messages,
-      });
-    } catch (erreur) {
-      mesures.dureeMs = Date.now() - debut;
-      if (erreur instanceof Anthropic.APIError) {
-        throw new ErreurExtraction(
-          "MODELE_INDISPONIBLE",
-          "Le service d'analyse ne répond pas pour le moment. Réessayez dans quelques minutes, ou choisissez un CV fictif.",
-          mesures,
-        );
-      }
-      throw erreur;
-    }
-
-    mesures.jetonsEntree += reponse.usage.input_tokens;
-    mesures.jetonsSortie += reponse.usage.output_tokens;
-
-    const analyse = analyserReponse(reponse);
-    if (analyse.ok) {
-      mesures.dureeMs = Date.now() - debut;
-      return { ...mesures, fiche: analyse.fiche };
-    }
-    if (analyse.sansAppel) mesures.sansAppelOutil += 1;
-    else mesures.sortiesInvalides += 1;
-
-    if (essai === 1) {
-      // Un seul nouvel essai : la réponse est rendue telle quelle, suivie des erreurs.
-      mesures.nouvelEssai = true;
-      messages.push({ role: "assistant", content: reponse.content }, { role: "user", content: [analyse.retour] });
-    }
-  }
-
-  mesures.dureeMs = Date.now() - debut;
-  throw new ErreurExtraction(
-    "EXTRACTION_IMPOSSIBLE",
-    "Les informations de ce CV n'ont pas pu être extraites de façon fiable. Essayez un autre fichier, ou un CV fictif.",
-    mesures,
+    client,
   );
+  return { ...mesures, fiche: donnees };
 }

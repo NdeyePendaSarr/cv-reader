@@ -61,6 +61,17 @@ describe("verifierQuota", () => {
     expect(await verifierQuota("extract", "198.51.100.1", limites)).toEqual({ ok: true });
   });
 
+  it("6e comparaison dans l'heure → QUOTA_IP ; les extractions restent possibles (quotas indépendants)", async () => {
+    vi.stubEnv("IP_HASH_SECRET", "secret-de-test");
+    const { verifierQuota } = await import("@/lib/ratelimit");
+    const limites = limitesSimulees();
+    for (let i = 0; i < 5; i++) {
+      expect(await verifierQuota("compare", "203.0.113.7", limites)).toEqual({ ok: true });
+    }
+    expect(await verifierQuota("compare", "203.0.113.7", limites)).toMatchObject({ ok: false, code: "QUOTA_IP" });
+    expect(await verifierQuota("extract", "203.0.113.7", limites)).toEqual({ ok: true });
+  });
+
   it("un visiteur bloqué ne consomme pas d'appel du plafond commun", async () => {
     vi.stubEnv("IP_HASH_SECRET", "secret-de-test");
     const { verifierQuota } = await import("@/lib/ratelimit");
