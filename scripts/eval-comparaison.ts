@@ -1,7 +1,7 @@
 /**
  * Essai réel de la comparaison (lancé à la main, jamais en CI : il consomme des crédits).
  *
- * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--ajouter "critère"]… [--oui]
+ * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--ajouter "critère"]… [--cv <id>]… [--sans-rapport] [--oui]
  *
  * --ajouter (répétable) ajoute un critère à ceux de samples/offre.md pour cet essai seulement,
  * sans modifier le fichier.
@@ -25,8 +25,8 @@ const RACINE = join(import.meta.dirname, "..");
 // Le SDK enverrait ses requêtes vers ANTHROPIC_BASE_URL si elle était définie : on vise l'API officielle.
 delete process.env.ANTHROPIC_BASE_URL;
 
-/** Les trois CV de l'essai : proche de l'offre, partiel, hors sujet. */
-const IDS = ["cv-01-lea-fictivia", "cv-03-hugo-exemplaire", "cv-05-margot-imaginaire"];
+/** Les trois CV de l'essai par défaut : proche de l'offre, partiel, hors sujet (--cv pour en choisir d'autres). */
+const IDS_PAR_DEFAUT = ["cv-01-lea-fictivia", "cv-03-hugo-exemplaire", "cv-05-margot-imaginaire"];
 
 const PRIX: Record<string, { entree: number; sortie: number }> = {
   "claude-haiku-5-5": { entree: 0.1, sortie: 0.5 },
@@ -49,11 +49,20 @@ function lireArguments() {
   }
   // --ajouter peut être répété : chaque valeur est un critère de plus, pour cet essai seulement.
   const ajouts = args.flatMap((a, k) => (a === "--ajouter" && args[k + 1] ? [args[k + 1]!.trim()] : [])).filter((c) => c !== "");
-  return { modele, suffixe, ajouts, sansQuestion: args.includes("--oui") };
+  // --cv peut être répété : fiches à comparer (par défaut, les trois CV de l'essai).
+  const choisis = args.flatMap((a, k) => (a === "--cv" && args[k + 1] ? [args[k + 1]!] : []));
+  const inconnus = choisis.filter((id) => !CV_FICTIFS.some((c) => c.id === id));
+  if (inconnus.length > 0) {
+    console.error(`--cv : identifiant inconnu (${inconnus.join(", ")}).`);
+    process.exit(1);
+  }
+  const ids = choisis.length > 0 ? choisis : IDS_PAR_DEFAUT;
+  // --sans-rapport : affiche les résultats sans écrire de fichier (vérification ponctuelle).
+  return { modele, suffixe, ajouts, ids, sansRapport: args.includes("--sans-rapport"), sansQuestion: args.includes("--oui") };
 }
 
 async function principal(): Promise<void> {
-  const { modele, suffixe, ajouts, sansQuestion } = lireArguments();
+  const { modele, suffixe, ajouts, ids: IDS, sansRapport, sansQuestion } = lireArguments();
   const criteresOffre = extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
   const criteres = [...criteresOffre, ...ajouts];
   console.log(`Modèle : ${modele} · ${criteres.length} critères (dont ${ajouts.length} ajouté(s) pour cet essai) · ${IDS.length} fiches`);
@@ -131,6 +140,11 @@ async function principal(): Promise<void> {
     `| Coût estimé | ${cout} |`,
     "",
   ];
+  if (sansRapport) {
+    console.log(`Aucun rapport écrit (--sans-rapport). Jetons : ${entree} / ${sortie} · durée : ${(duree / 1000).toFixed(1)} s · coût estimé : ${cout}`);
+    console.log(JSON.stringify(bruts, null, 1));
+    return;
+  }
   const dossier = join(RACINE, "docs", "eval");
   await mkdir(dossier, { recursive: true });
   const base = `${date}-comparaison${suffixe ? `-${suffixe}` : ""}`;

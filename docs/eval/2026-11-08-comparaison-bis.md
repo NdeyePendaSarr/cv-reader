@@ -37,7 +37,7 @@ Jetons : 2425 en entrée, 2154 en sortie · durée : 9.2 s · nouvel essai : non
 
 | Critère | Résultat | Justification | Avis |
 | --- | --- | --- | --- |
-| Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js) | présent | « API REST en Node.js et TypeScript, automatisations avec n8n, déploiements sous Linux. » | Juste (dates de l'expérience : septembre 2021 – février 2023). |
+| Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js) | présent | « API REST en Node.js et TypeScript, automatisations avec n8n, déploiements sous Linux. » | Juste sur le fond, mais l'extrait ne prouve pas la durée : seules les dates de l'expérience la montrent. |
 | Pratique de React | présent | « React » | Juste. |
 | Bases de SQL et de PostgreSQL : requêtes, jointures, migrations | présent | « SQL; PostgreSQL; Conception d'une application Next.js et PostgreSQL : requêtes, jointures et migrations avec Prisma. » | Juste. Critère en « et » : un extrait par élément (« SQL », « PostgreSQL », puis la phrase sur les requêtes, jointures et migrations), plus précis que la description entière du premier essai. |
 | Usage quotidien d'un assistant de code IA, avec relecture | présent | « Usage quotidien d'un assistant de code IA, chaque proposition relue. » | Juste. |
@@ -75,16 +75,16 @@ Jetons : 2174 en entrée, 766 en sortie · durée : 3.1 s · nouvel essai : non 
 
 | Critère | Résultat | Justification | Avis |
 | --- | --- | --- | --- |
-| Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Pratique de React | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Bases de SQL et de PostgreSQL : requêtes, jointures, migrations | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Usage quotidien d'un assistant de code IA, avec relecture | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Au moins une intégration d'API de modèle de langage (Claude, OpenAI ou autre) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Pratique de Git | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Pratique de la ligne de commande Linux | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Anglais technique lu | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Expérience de Next.js (atout) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Notions de développement mobile : React Native, Expo ou PWA (atout) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Outil d'automatisation : n8n, Make ou Zapier (atout) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
-| Tests automatisés avec Vitest ou Playwright (atout) | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
+| Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js) | non trouvé | — | Juste : aucune expérience de développement ; ses deux postes sont en comptabilité (comptable, assistante comptable). |
+| Pratique de React | non trouvé | — | Juste : ses compétences sont Comptabilité générale, Fiscalité, Paie, Excel et Sage ; aucun outil de développement web. |
+| Bases de SQL et de PostgreSQL : requêtes, jointures, migrations | non trouvé | — | Juste : aucune base de données citée ; les seuls logiciels de la fiche sont Excel et Sage. |
+| Usage quotidien d'un assistant de code IA, avec relecture | non trouvé | — | Juste : la fiche ne mentionne aucun outil de programmation ni d'IA. |
+| Au moins une intégration d'API de modèle de langage (Claude, OpenAI ou autre) | non trouvé | — | Juste : aucune intégration d'API ; ses expériences décrivent la tenue de la comptabilité, les déclarations de TVA et la saisie des factures. |
+| Pratique de Git | non trouvé | — | Juste : Git ne figure ni dans ses compétences ni dans ses expériences. |
+| Pratique de la ligne de commande Linux | non trouvé | — | Juste : aucune mention de Linux ni de ligne de commande. |
+| Anglais technique lu | non trouvé | — | Juste : la fiche ne cite que le français et l'espagnol (notions). |
+| Expérience de Next.js (atout) | non trouvé | — | Juste : aucun framework web dans la fiche. |
+| Notions de développement mobile : React Native, Expo ou PWA (atout) | non trouvé | — | Juste : aucune mention de React Native, d'Expo ni de PWA. |
+| Outil d'automatisation : n8n, Make ou Zapier (atout) | non trouvé | — | Juste : aucun de ces trois outils ; les seuls logiciels cités sont Excel et Sage. |
+| Tests automatisés avec Vitest ou Playwright (atout) | non trouvé | — | Juste : aucun outil de test logiciel dans la fiche. |
 

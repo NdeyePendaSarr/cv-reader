@@ -89,3 +89,15 @@ Jetons : 2336 en entrée, 976 en sortie · durée : 3.7 s · nouvel essai : non 
 | Experience with Docker and Kubernetes | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
 | Pratique de TypeScript, Prisma et Docker | non trouvé | — | Juste : CV de comptabilité, sans rapport avec le critère. |
 
+## Vérification de la règle des durées
+
+Essai complémentaire du 08/11 (T4-quinquies), après l'ajout de la règle 6 de la consigne : un critère qui exige une durée (« au moins un an ») n'est « présent » que si la justification cite aussi la date de début et la date de fin de l'expérience concernée. Fiche de référence de Léa Fictivia seule, 12 critères de `samples/offre.md`, Claude Haiku 5.5 ; résultats affichés par `scripts/eval-comparaison.ts --cv cv-01-lea-fictivia --sans-rapport`.
+
+| Critère | Résultat | Justification | Avis |
+| --- | --- | --- | --- |
+| Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js) | présent | « API REST en Node.js et TypeScript, automatisations avec n8n, déploiements sous Linux. ; Septembre 2021 ; Février 2023 » | Juste : l'extrait prouve maintenant la durée. De septembre 2021 à février 2023, l'expérience dure environ 17 mois, donc au moins un an ; les deux dates figurent dans la fiche (début et fin de l'expérience « Développeuse back-end Node.js »). |
+
+- Avant la règle (essais bis et ter) : présent, avec le seul extrait « API REST en Node.js et TypeScript… », qui ne prouvait pas la durée.
+- Les 11 autres critères gardent le même statut que dans l'essai ter pour Léa Fictivia (seul l'extrait du critère d'automatisation change : « automatisations avec n8n » au lieu de « n8n »).
+- Justifications rejetées : 0 · nouvel essai : non · jetons : 2 733 en entrée, 2 197 en sortie · durée : 12,3 s · coût estimé : 0,0014 $.
+- Limites : une seule exécution, une seule fiche ; le serveur contrôle que les deux dates existent dans la fiche, mais pas le calcul de la durée, qui reste celui du modèle.

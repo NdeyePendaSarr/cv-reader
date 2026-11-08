@@ -284,6 +284,47 @@ describe("comparer", () => {
     });
   });
 
+  describe("durée minimale : « Au moins un an… (Node.js) »", () => {
+    const critere = ["Au moins un an de développement web en JavaScript ou TypeScript côté serveur (Node.js)"];
+    const nina: FicheCV = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "samples", "cv-06-nina-inventee.json"), "utf8"),
+    );
+
+    it("la consigne exige les dates de début et de fin, et reçoit la date du jour", async () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(/Durée minimale[\s\S]*date de début et la date de fin[\s\S]*« non_trouve »/);
+      const { client, create } = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      await comparer(fiche, critere, "modele-test", client);
+      expect(create.mock.calls[0]![0].messages[0].content[0].text).toMatch(/Date du jour : \d{4}-\d{2}-\d{2}/);
+    });
+
+    it("dates présentes et suffisantes (Léa : septembre 2021 – février 2023) → présent, avec les dates dans les extraits", async () => {
+      const justification = "API REST en Node.js et TypeScript, automatisations avec n8n, déploiements sous Linux. ; Septembre 2021 ; Février 2023";
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification }] });
+      const [r] = (await comparer(fiche, critere, "modele-test", client)).resultats;
+      expect(r).toMatchObject({ statut: "present", justificationRejetee: false });
+      expect(r!.justification).toContain("Septembre 2021");
+      expect(r!.justification).toContain("Février 2023");
+    });
+
+    it("aucune date (Nina : expérience Express sans dates) → non_trouve ; dates inventées → rejetées par le serveur", async () => {
+      expect(nina.experiences[0]).toMatchObject({ debut: null, fin: null });
+      const suit = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      expect((await comparer(nina, critere, "modele-test", suit.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: false,
+      });
+      const invente = clientSimule({
+        resultats: [{ critere: critere[0], statut: "present", justification: "API Express et MongoDB ; Janvier 2022 ; Mars 2023" }],
+      });
+      expect((await comparer(nina, critere, "modele-test", invente.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: true,
+      });
+    });
+  });
+
   it("une justification inventée est rejetée après coup, sans nouvel essai", async () => {
     const invente = {
       resultats: [
