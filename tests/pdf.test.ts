@@ -3,12 +3,17 @@ import { PAGES_MAX, TAILLE_MAX_OCTETS, verifierPdf } from "@/lib/pdf";
 import { fabriquerPdf, octetsTropLourds } from "./outils";
 
 describe("verifierPdf", () => {
-  it("accepte un PDF valide et renvoie son nombre de pages", async () => {
-    expect(await verifierPdf(await fabriquerPdf(2))).toEqual({ ok: true, pages: 2 });
+  it("accepte un PDF valide et renvoie son nombre de pages et son texte, en une seule lecture", async () => {
+    const verdict = await verifierPdf(await fabriquerPdf(2));
+    expect(verdict).toMatchObject({ ok: true, pages: 2 });
+    if (verdict.ok) {
+      expect(verdict.texte).toContain("Page 1");
+      expect(verdict.texte).toContain("Page 2");
+    }
   });
 
   it("accepte un PDF de 5 pages exactement", async () => {
-    expect(await verifierPdf(await fabriquerPdf(PAGES_MAX))).toEqual({ ok: true, pages: 5 });
+    expect(await verifierPdf(await fabriquerPdf(PAGES_MAX))).toMatchObject({ ok: true, pages: 5 });
   });
 
   it("refuse un fichier vide (400 FICHIER_INVALIDE)", async () => {

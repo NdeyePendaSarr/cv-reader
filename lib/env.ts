@@ -9,8 +9,8 @@
 export type NomVariable =
   | "ANTHROPIC_API_KEY"
   | "IP_HASH_SECRET"
-  | "UPSTASH_REDIS_REST_URL"
-  | "UPSTASH_REDIS_REST_TOKEN"
+  | "KV_REST_API_URL" // créée par l'intégration Upstash de Vercel
+  | "KV_REST_API_TOKEN"
   | "CLAUDE_MODEL";
 
 /**

@@ -70,7 +70,7 @@ describe("CV fictifs", () => {
     });
 
     it("est un PDF accepté par verifierPdf", async () => {
-      expect(await verifierPdf(lirePdf(id))).toEqual({ ok: true, pages: 1 });
+      expect(await verifierPdf(lirePdf(id))).toMatchObject({ ok: true, pages: 1 });
     });
 
     if (cv.profil === "scanne") {

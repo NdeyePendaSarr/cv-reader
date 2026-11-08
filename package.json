@@ -9,9 +9,14 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "generer-cv": "tsx scripts/generer-cv.ts"
+    "generer-cv": "tsx scripts/generer-cv.ts",
+    "eval": "tsx --env-file=.env.local scripts/eval.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.41.0",
+    "@vercel/functions": "^3.11.0",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
