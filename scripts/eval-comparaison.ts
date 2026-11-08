@@ -1,7 +1,10 @@
 /**
  * Essai réel de la comparaison (lancé à la main, jamais en CI : il consomme des crédits).
  *
- * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--oui]
+ * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--ajouter "critère"]… [--oui]
+ *
+ * --ajouter (répétable) ajoute un critère à ceux de samples/offre.md pour cet essai seulement,
+ * sans modifier le fichier.
  *
  * Compare les fiches de référence de trois CV fictifs (public/samples/) aux critères de
  * samples/offre.md, avec lib/compare.ts (même code qu'en production, contrôle anti-invention compris).
@@ -44,13 +47,16 @@ function lireArguments() {
     console.error("--suffixe : lettres minuscules, chiffres et tirets seulement.");
     process.exit(1);
   }
-  return { modele, suffixe, sansQuestion: args.includes("--oui") };
+  // --ajouter peut être répété : chaque valeur est un critère de plus, pour cet essai seulement.
+  const ajouts = args.flatMap((a, k) => (a === "--ajouter" && args[k + 1] ? [args[k + 1]!.trim()] : [])).filter((c) => c !== "");
+  return { modele, suffixe, ajouts, sansQuestion: args.includes("--oui") };
 }
 
 async function principal(): Promise<void> {
-  const { modele, suffixe, sansQuestion } = lireArguments();
-  const criteres = extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
-  console.log(`Modèle : ${modele} · ${criteres.length} critères · ${IDS.length} fiches`);
+  const { modele, suffixe, ajouts, sansQuestion } = lireArguments();
+  const criteresOffre = extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
+  const criteres = [...criteresOffre, ...ajouts];
+  console.log(`Modèle : ${modele} · ${criteres.length} critères (dont ${ajouts.length} ajouté(s) pour cet essai) · ${IDS.length} fiches`);
   console.log(`Appels prévus à l'API : ${IDS.length} (jusqu'à ${2 * IDS.length} avec les nouveaux essais).`);
   if (!sansQuestion) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -116,6 +122,9 @@ async function principal(): Promise<void> {
     "| Mesure | Valeur |",
     "| --- | --- |",
     `| Fiches comparées | ${IDS.length} × ${criteres.length} critères |`,
+    ...(ajouts.length > 0
+      ? [`| Critères ajoutés pour cet essai seulement (hors samples/offre.md) | ${ajouts.map((c) => `« ${c} »`).join(", ")} |`]
+      : []),
     `| Justifications rejetées par le contrôle anti-invention | ${rejetees} |`,
     `| Jetons (entrée / sortie, total) | ${entree} / ${sortie} |`,
     `| Durée totale | ${(duree / 1000).toFixed(1)} s |`,

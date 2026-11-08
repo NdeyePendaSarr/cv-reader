@@ -2,6 +2,8 @@
 
 CV Reader extrait les informations d'un CV en PDF (identité, compétences, expériences, formations, langues) et les fait vérifier par un humain avant tout usage. La fiche validée est ensuite comparée, critère par critère, aux exigences d'une offre, sans score ni décision automatique : la décision reste humaine.
 
+**Démo en ligne : [cv-reader-ruddy.vercel.app](https://cv-reader-ruddy.vercel.app)** (CV fictifs uniquement : n'y déposez pas de vrai CV).
+
 > **Statut : V1 complète (tranches T0 à T4), démo sur CV fictifs.**
 >
 > - **Extraction (T1, T2)** : le PDF est contrôlé (signature, 4 Mo, 5 pages), la fiche est extraite par l'API Claude, validée par Zod, puis chaque valeur est cherchée dans le texte du PDF.
@@ -60,7 +62,7 @@ Limites de la comparaison avec l'offre (T4), à garder en tête en lisant ses r�
 
 - **Le serveur vérifie les extraits, pas la couverture du critère.** Chaque extrait cité en justification doit exister dans la fiche validée, sinon le critère passe en « non trouvé ». En revanche, le serveur ne vérifie pas que tous les éléments d'un critère sont couverts : pour « Git et Linux », c'est la consigne donnée au modèle qui exige un extrait par élément. Si le modèle justifiait « Git » seul, le serveur ne le verrait pas.
 - **Le statut est binaire.** Chaque critère est « présent » ou « non trouvé », sans nuance : un critère à moitié rempli sort « non trouvé ». Par exemple, une fiche qui montre l'usage de GitHub Copilot, sans « quotidien » ni « avec relecture », donne « non trouvé » pour « Usage quotidien d'un assistant de code IA, avec relecture ». Les indices partiels se lisent dans la fiche, pas dans le résultat.
-- **L'évaluation est réduite.** La comparaison a été évaluée sur 3 CV fictifs (Léa Fictivia, Hugo Exemplaire, Margot Imaginaire), avec une seule exécution par essai et l'avis d'une seule personne ; un autre passage peut donner d'autres résultats. Rapports : [premier essai](docs/eval/2026-11-08-comparaison.md), [essai bis](docs/eval/2026-11-08-comparaison-bis.md).
+- **L'évaluation est réduite.** La comparaison a été évaluée sur 3 CV fictifs (Léa Fictivia, Hugo Exemplaire, Margot Imaginaire), avec une seule exécution par essai et l'avis d'une seule personne ; un autre passage peut donner d'autres résultats. Rapports : [premier essai](docs/eval/2026-11-08-comparaison.md), [essai bis](docs/eval/2026-11-08-comparaison-bis.md), [essai ter](docs/eval/2026-11-08-comparaison-ter.md) (critères en anglais et énumérations).
 
 ## Lancement local
 

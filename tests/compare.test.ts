@@ -246,6 +246,44 @@ describe("comparer", () => {
     });
   });
 
+  describe("énumération sans mot de liaison : lue comme un « et »", () => {
+    const hugo: FicheCV = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "samples", "cv-03-hugo-exemplaire.json"), "utf8"),
+    );
+    const critere = ["Intégration web : HTML, CSS, Kubernetes"];
+
+    it("la consigne lit « requêtes, jointures, migrations » comme un « et »", () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(
+        /énumération sans mot de liaison \(« requêtes, jointures, migrations »\) se lit comme un « et »/,
+      );
+      expect(hugo.competences).toEqual(expect.arrayContaining(["HTML", "CSS"]));
+      expect(JSON.stringify(hugo)).not.toMatch(/kubernetes/i);
+    });
+
+    it("élément manquant : modèle qui suit la consigne → non_trouve ; extrait inventé → rejeté", async () => {
+      const suit = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      expect((await comparer(hugo, critere, "modele-test", suit.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justificationRejetee: false,
+      });
+      const invente = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "HTML ; CSS ; Kubernetes" }] });
+      expect((await comparer(hugo, critere, "modele-test", invente.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: true,
+      });
+    });
+
+    it("tous les éléments présents : trois extraits → présent", async () => {
+      const complet = ["Intégration web : HTML, CSS, Tailwind"];
+      const r = clientSimule({ resultats: [{ critere: complet[0], statut: "present", justification: "HTML ; CSS ; Tailwind" }] });
+      expect((await comparer(hugo, complet, "modele-test", r.client)).resultats[0]).toMatchObject({
+        statut: "present",
+        justificationRejetee: false,
+      });
+    });
+  });
+
   it("une justification inventée est rejetée après coup, sans nouvel essai", async () => {
     const invente = {
       resultats: [
