@@ -202,6 +202,50 @@ describe("comparer", () => {
     });
   });
 
+  describe("critères composés en anglais et énumérations (fiche de Léa : Docker, TypeScript, Prisma, sans Kubernetes)", () => {
+    it("la consigne couvre « and » / « or » et les énumérations « A, B et C »", () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(/« et » ou « and »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/« A, B et C », « A, B and C » : les trois éléments/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/« ou » ou « or »[\s\S]*un seul élément justifié suffit/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/dernier mot de liaison qui décide/);
+      expect(fiche.competences).toEqual(expect.arrayContaining(["Docker", "TypeScript", "Prisma"]));
+      expect(JSON.stringify(fiche)).not.toMatch(/kubernetes/i);
+    });
+
+    it("critère en anglais en « and » : modèle qui suit la consigne → non_trouve ; extrait inventé → rejeté", async () => {
+      const critere = ["Experience with Docker and Kubernetes"];
+      const suit = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      expect((await comparer(fiche, critere, "modele-test", suit.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justificationRejetee: false,
+      });
+      const invente = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Docker ; Kubernetes" }] });
+      expect((await comparer(fiche, critere, "modele-test", invente.client)).resultats[0]).toEqual({
+        critere: critere[0],
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: true,
+      });
+    });
+
+    it("énumération avec des virgules : les trois éléments justifiés → présent ; un élément inventé → rejeté", async () => {
+      const complet = ["Pratique de TypeScript, Prisma et Docker"];
+      const r1 = clientSimule({ resultats: [{ critere: complet[0], statut: "present", justification: "TypeScript ; Prisma ; Docker" }] });
+      expect((await comparer(fiche, complet, "modele-test", r1.client)).resultats[0]).toMatchObject({
+        statut: "present",
+        justification: "TypeScript ; Prisma ; Docker",
+        justificationRejetee: false,
+      });
+      const incomplet = ["Pratique de TypeScript, Prisma et Kubernetes"];
+      const r2 = clientSimule({ resultats: [{ critere: incomplet[0], statut: "present", justification: "TypeScript ; Prisma ; Kubernetes" }] });
+      expect((await comparer(fiche, incomplet, "modele-test", r2.client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: true,
+      });
+    });
+  });
+
   it("une justification inventée est rejetée après coup, sans nouvel essai", async () => {
     const invente = {
       resultats: [
