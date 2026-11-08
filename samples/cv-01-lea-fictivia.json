@@ -1,0 +1,69 @@
+{
+  "identite": {
+    "nomComplet": "Léa Fictivia",
+    "titre": "Développeuse full-stack TypeScript",
+    "ville": "Lyon",
+    "pays": "France"
+  },
+  "contact": {
+    "email": "lea.fictivia@example.com",
+    "telephone": "06 39 98 12 34",
+    "linkedin": null,
+    "github": null,
+    "siteWeb": "https://lea-fictivia.example.com"
+  },
+  "competences": [
+    "TypeScript",
+    "JavaScript",
+    "Node.js",
+    "React",
+    "Next.js",
+    "PostgreSQL",
+    "SQL",
+    "Prisma",
+    "Vitest",
+    "Playwright",
+    "Git",
+    "Linux",
+    "Docker",
+    "API Claude",
+    "n8n"
+  ],
+  "experiences": [
+    {
+      "poste": "Développeuse full-stack",
+      "entreprise": "Atelier Exemple SAS",
+      "lieu": "Lyon",
+      "debut": "Mars 2023",
+      "fin": "en cours",
+      "description": "Conception d'une application Next.js et PostgreSQL : requêtes, jointures et migrations avec Prisma. Intégration de l'API Claude pour résumer les tickets clients, avec validation humaine. Tests avec Vitest et Playwright. Usage quotidien d'un assistant de code IA, chaque proposition relue."
+    },
+    {
+      "poste": "Développeuse back-end Node.js",
+      "entreprise": "Société Fictive des Données",
+      "lieu": "Villeurbanne",
+      "debut": "Septembre 2021",
+      "fin": "Février 2023",
+      "description": "API REST en Node.js et TypeScript, automatisations avec n8n, déploiements sous Linux."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "Master Informatique",
+      "etablissement": "Université Fictive de Lyon",
+      "debut": "2019",
+      "fin": "2021"
+    },
+    {
+      "diplome": "Licence Informatique",
+      "etablissement": "Université Fictive de Lyon",
+      "debut": "2016",
+      "fin": "2019"
+    }
+  ],
+  "langues": [
+    { "langue": "Français", "niveau": "langue maternelle" },
+    { "langue": "Anglais", "niveau": "courant (C1)" }
+  ],
+  "langueDuCV": "fr"
+}

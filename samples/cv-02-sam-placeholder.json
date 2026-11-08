@@ -1,0 +1,61 @@
+{
+  "identite": {
+    "nomComplet": "Sam Placeholder",
+    "titre": "Backend Developer (Node.js)",
+    "ville": "Manchester",
+    "pays": "United Kingdom"
+  },
+  "contact": {
+    "email": "sam.placeholder@example.com",
+    "telephone": "+44 7700 900123",
+    "linkedin": null,
+    "github": "https://github.example.com/sam-placeholder",
+    "siteWeb": null
+  },
+  "competences": [
+    "Node.js",
+    "TypeScript",
+    "React",
+    "Next.js",
+    "PostgreSQL",
+    "SQL",
+    "Knex",
+    "OpenAI API",
+    "Playwright",
+    "Git",
+    "Linux",
+    "Bash",
+    "Expo"
+  ],
+  "experiences": [
+    {
+      "poste": "Senior Backend Developer",
+      "entreprise": "Example Widgets Ltd",
+      "lieu": "Manchester",
+      "debut": "January 2022",
+      "fin": "present",
+      "description": "Built Node.js services on PostgreSQL, with complex joins and schema migrations written with Knex. Integrated the OpenAI API to classify support emails. Daily use of GitHub Copilot, with a review of every suggestion. End-to-end tests with Playwright."
+    },
+    {
+      "poste": "Full-Stack Developer",
+      "entreprise": "Placeholder Apps",
+      "lieu": "Leeds",
+      "debut": "June 2019",
+      "fin": "December 2021",
+      "description": "React and Node.js features, and a small Expo mobile app for field teams."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "BSc Computer Science",
+      "etablissement": "University of Nowhere",
+      "debut": "2016",
+      "fin": "2019"
+    }
+  ],
+  "langues": [
+    { "langue": "English", "niveau": "native" },
+    { "langue": "French", "niveau": "intermediate (B1)" }
+  ],
+  "langueDuCV": "en"
+}

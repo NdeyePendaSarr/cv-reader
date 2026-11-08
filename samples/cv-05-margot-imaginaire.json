@@ -1,0 +1,47 @@
+{
+  "identite": {
+    "nomComplet": "Margot Imaginaire",
+    "titre": "Comptable",
+    "ville": "Bordeaux",
+    "pays": "France"
+  },
+  "contact": {
+    "email": "margot.imaginaire@example.com",
+    "telephone": "06 39 98 78 90",
+    "linkedin": null,
+    "github": null,
+    "siteWeb": null
+  },
+  "competences": ["Comptabilité générale", "Fiscalité", "Paie", "Excel", "Sage"],
+  "experiences": [
+    {
+      "poste": "Comptable",
+      "entreprise": "Cabinet Fictif & Associés",
+      "lieu": "Bordeaux",
+      "debut": "Octobre 2018",
+      "fin": "en cours",
+      "description": "Tenue de la comptabilité de PME, déclarations de TVA, bilans annuels."
+    },
+    {
+      "poste": "Assistante comptable",
+      "entreprise": "Boulangerie Exemple",
+      "lieu": "Libourne",
+      "debut": "2015",
+      "fin": "2018",
+      "description": "Saisie des factures et rapprochements bancaires."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "DCG (Diplôme de comptabilité et de gestion)",
+      "etablissement": "Lycée Imaginaire de Bordeaux",
+      "debut": "2012",
+      "fin": "2015"
+    }
+  ],
+  "langues": [
+    { "langue": "Français", "niveau": "langue maternelle" },
+    { "langue": "Espagnol", "niveau": "notions" }
+  ],
+  "langueDuCV": "fr"
+}

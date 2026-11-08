@@ -1,0 +1,39 @@
+{
+  "identite": {
+    "nomComplet": "Chloé Démo",
+    "titre": "Développeuse mobile",
+    "ville": "Toulouse",
+    "pays": "France"
+  },
+  "contact": {
+    "email": "chloe.demo@example.com",
+    "telephone": "06 39 98 56 78",
+    "linkedin": null,
+    "github": null,
+    "siteWeb": null
+  },
+  "competences": ["React Native", "Expo", "TypeScript", "Firebase", "Git"],
+  "experiences": [
+    {
+      "poste": "Développeuse mobile",
+      "entreprise": "Appli Fictive SARL",
+      "lieu": "Toulouse",
+      "debut": "Mai 2021",
+      "fin": "en cours",
+      "description": "Applications React Native et Expo, publication sur les magasins d'applications."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "Master Génie logiciel",
+      "etablissement": "Université Imaginaire de Toulouse",
+      "debut": "2019",
+      "fin": "2021"
+    }
+  ],
+  "langues": [
+    { "langue": "Français", "niveau": "langue maternelle" },
+    { "langue": "Anglais", "niveau": "courant" }
+  ],
+  "langueDuCV": "fr"
+}

@@ -1,0 +1,48 @@
+{
+  "identite": {
+    "nomComplet": "Yanis Fictif",
+    "titre": "Développeur full-stack",
+    "ville": "Marseille",
+    "pays": "France"
+  },
+  "contact": {
+    "email": "yanis.fictif@example.com",
+    "telephone": "06 39 98 23 45",
+    "linkedin": null,
+    "github": null,
+    "siteWeb": "https://yanis.example.com"
+  },
+  "competences": ["JavaScript", "TypeScript", "Node.js", "React", "PostgreSQL", "Git", "Linux", "Make"],
+  "experiences": [
+    {
+      "poste": "Développeur full-stack",
+      "entreprise": "Port Fictif Logistique",
+      "lieu": "Marseille",
+      "debut": "Février 2022",
+      "fin": "en cours",
+      "description": "Application interne en React et Node.js sur PostgreSQL. Automatisations avec Make."
+    },
+    {
+      "poste": "Technicien support",
+      "entreprise": "Exemple Télécom",
+      "lieu": "Aix-en-Provence",
+      "debut": "2019",
+      "fin": "2022",
+      "description": "Support des utilisateurs et scripts Bash sous Linux."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "Licence professionnelle Développement web",
+      "etablissement": "Université Fictive d'Aix-Marseille",
+      "debut": "2018",
+      "fin": "2019"
+    }
+  ],
+  "langues": [
+    { "langue": "Français", "niveau": "langue maternelle" },
+    { "langue": "Arabe", "niveau": "courant" },
+    { "langue": "Anglais", "niveau": "technique" }
+  ],
+  "langueDuCV": "fr"
+}

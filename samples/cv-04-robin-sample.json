@@ -1,0 +1,47 @@
+{
+  "identite": {
+    "nomComplet": "Robin Sample",
+    "titre": "Python Developer",
+    "ville": "Toronto",
+    "pays": "Canada"
+  },
+  "contact": {
+    "email": "robin.sample@example.com",
+    "telephone": "+1 416 555 0142",
+    "linkedin": null,
+    "github": null,
+    "siteWeb": null
+  },
+  "competences": ["Python", "Django", "SQL", "MySQL", "JavaScript", "React (basics)", "Git", "Docker"],
+  "experiences": [
+    {
+      "poste": "Python Developer",
+      "entreprise": "Sample Analytics Inc.",
+      "lieu": "Toronto",
+      "debut": "March 2021",
+      "fin": "present",
+      "description": "Django back end for internal reporting tools, SQL queries on MySQL. Some React screens."
+    },
+    {
+      "poste": "Junior Developer",
+      "entreprise": "Fictional Logistics Co.",
+      "lieu": "Ottawa",
+      "debut": "2019",
+      "fin": "2021",
+      "description": "Python scripts to automate data imports."
+    }
+  ],
+  "formations": [
+    {
+      "diplome": "Diploma in Computer Programming",
+      "etablissement": "Imaginary College of Technology",
+      "debut": "2017",
+      "fin": "2019"
+    }
+  ],
+  "langues": [
+    { "langue": "English", "niveau": "native" },
+    { "langue": "Spanish", "niveau": "basic" }
+  ],
+  "langueDuCV": "en"
+}
