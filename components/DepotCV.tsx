@@ -4,17 +4,35 @@
  * Zone de dépôt d'un CV : glisser-déposer ou bouton « Choisir un PDF ».
  * Le type et la taille sont contrôlés dans le navigateur avant l'envoi
  * (par envoyerCV), puis le serveur refait ses propres contrôles.
+ * En cas de succès, la fiche est remise au parent (ParcoursCV) par `surFiche`.
  */
 import { useId, useRef, useState, type DragEvent } from "react";
-import { envoyerCV } from "@/lib/api-client";
+import { envoyerCV, type ReponseExtraction } from "@/lib/api-client";
 
 type Etat =
   | { type: "attente" }
   | { type: "envoi"; nomFichier: string }
-  | { type: "erreur"; nomFichier: string; message: string }
-  | { type: "info"; nomFichier: string; message: string };
+  | { type: "erreur"; nomFichier: string; titre: string; message: string };
 
-export default function DepotCV() {
+/** Titre de l'encadré d'erreur selon le code : refus du fichier, ou service momentanément indisponible. */
+function titreErreur(code: string, nomFichier: string): string {
+  switch (code) {
+    case "QUOTA_IP":
+    case "PLAFOND_GLOBAL":
+      return "Limite d'analyses atteinte";
+    case "EXTRACTION_IMPOSSIBLE":
+      return `Extraction impossible : ${nomFichier}`;
+    case "MODELE_INDISPONIBLE":
+    case "RESEAU":
+    case "ERREUR_INTERNE":
+    case "REPONSE_INATTENDUE":
+      return "Service indisponible";
+    default:
+      return `Fichier refusé : ${nomFichier}`;
+  }
+}
+
+export default function DepotCV({ surFiche }: { surFiche: (resultat: ReponseExtraction, nomFichier: string) => void }) {
   const [etat, setEtat] = useState<Etat>({ type: "attente" });
   const [survol, setSurvol] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
@@ -25,12 +43,15 @@ export default function DepotCV() {
     setEtat({ type: "envoi", nomFichier: fichier.name });
     const resultat = await envoyerCV(fichier);
     if (resultat.ok) {
-      // Cas atteint à partir de T2 seulement.
-      setEtat({ type: "info", nomFichier: fichier.name, message: "Extraction terminée." });
-    } else if (resultat.code === "EXTRACTION_PAS_ENCORE_DISPONIBLE") {
-      setEtat({ type: "info", nomFichier: fichier.name, message: resultat.message });
+      setEtat({ type: "attente" });
+      surFiche(resultat.donnees, fichier.name);
     } else {
-      setEtat({ type: "erreur", nomFichier: fichier.name, message: resultat.message });
+      setEtat({
+        type: "erreur",
+        nomFichier: fichier.name,
+        titre: titreErreur(resultat.code, fichier.name),
+        message: resultat.message,
+      });
     }
   }
 
@@ -43,6 +64,7 @@ export default function DepotCV() {
       setEtat({
         type: "erreur",
         nomFichier: `${fichiers.length} fichiers`,
+        titre: "Fichiers refusés",
         message: "Déposez un seul CV à la fois.",
       });
       return;
@@ -74,9 +96,7 @@ export default function DepotCV() {
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-10 w-10 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
         </svg>
-        <p className="text-base">
-          Glissez votre PDF ici, ou
-        </p>
+        <p className="text-base">Glissez votre PDF ici, ou</p>
         <button
           type="button"
           onClick={() => champ.current?.click()}
@@ -84,7 +104,7 @@ export default function DepotCV() {
           aria-describedby={idAide}
           className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {enCours ? "Envoi en cours…" : "Choisir un PDF"}
+          {enCours ? "Analyse en cours…" : "Choisir un PDF"}
         </button>
         <p id={idAide} className="text-sm text-zinc-500 dark:text-zinc-400">
           PDF uniquement, 4 Mo et 5 pages au plus. Le fichier n&apos;est conservé nulle part.
@@ -109,18 +129,12 @@ export default function DepotCV() {
         {etat.type === "envoi" && (
           <p className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" aria-hidden="true" />
-            Vérification de « {etat.nomFichier} »…
+            Analyse de « {etat.nomFichier} »… cela peut prendre une trentaine de secondes.
           </p>
         )}
         {etat.type === "erreur" && (
           <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/50 dark:text-red-100">
-            <p className="font-semibold">Fichier refusé : {etat.nomFichier}</p>
-            <p>{etat.message}</p>
-          </div>
-        )}
-        {etat.type === "info" && (
-          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
-            <p className="font-semibold">Fichier accepté : {etat.nomFichier}</p>
+            <p className="font-semibold">{etat.titre}</p>
             <p>{etat.message}</p>
           </div>
         )}

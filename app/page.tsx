@@ -1,9 +1,25 @@
 /**
- * Page d'accueil : présentation, avertissement de démo, puis dépôt du CV (tranche T1).
- * Les étapes suivantes du parcours (validation, comparaison) arrivent en T2 à T4.
+ * Page d'accueil : présentation, avertissement de démo, puis parcours du CV
+ * (dépôt ou CV fictif, puis fiche en lecture seule). Validation et comparaison arrivent en T3 et T4.
  */
-import DepotCV from "@/components/DepotCV";
-import ListeCVFictifs from "@/components/ListeCVFictifs";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+import ParcoursCV from "@/components/ParcoursCV";
+import { CV_FICTIFS } from "@/lib/samples";
+
+/**
+ * CV fictifs dont la fiche de référence existe dans public/samples/ (lu à la compilation).
+ * Dossier absent ou vide : aucun CV fictif n'est encore disponible.
+ */
+function cvFictifsDisponibles(): string[] {
+  let fichiers: string[];
+  try {
+    fichiers = readdirSync(join(process.cwd(), "public", "samples"));
+  } catch {
+    return [];
+  }
+  return CV_FICTIFS.map((cv) => cv.id).filter((id) => fichiers.includes(`${id}.json`));
+}
 
 export default function Accueil() {
   return (
@@ -29,8 +45,7 @@ export default function Accueil() {
           </p>
         </header>
 
-        <DepotCV />
-        <ListeCVFictifs />
+        <ParcoursCV disponibles={cvFictifsDisponibles()} />
       </main>
     </div>
   );

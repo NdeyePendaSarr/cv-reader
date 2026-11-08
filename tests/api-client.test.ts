@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { envoyerCV } from "@/lib/api-client";
 import { TAILLE_MAX_OCTETS } from "@/lib/limites";
@@ -62,9 +64,56 @@ describe("envoyerCV", () => {
     expect(resultat).toEqual({ ok: false, code: "TROP_DE_PAGES", message: "Ce PDF fait 6 pages." });
   });
 
+  it("renvoie la fiche d'une réponse 200 validée par Zod", async () => {
+    const fiche = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "samples", "cv-03-hugo-exemplaire.json"), "utf8"),
+    );
+    const corps = { fiche, aVerifier: ["identite.ville"], modele: "modele-test", dureeMs: 4200 };
+    const resultat = await envoyerCV(fichierPdf(), fetchQuiRepond(Response.json(corps)));
+    expect(resultat).toEqual({ ok: true, donnees: corps });
+  });
+
+  it("refuse d'afficher une réponse 200 dont la fiche ne respecte pas le schéma", async () => {
+    const corps = { fiche: { identite: {} }, aVerifier: [], modele: "modele-test", dureeMs: 1 };
+    const resultat = await envoyerCV(fichierPdf(), fetchQuiRepond(Response.json(corps)));
+    expect(resultat).toMatchObject({ ok: false, code: "REPONSE_INATTENDUE" });
+  });
+
+  it("429 : transmet le message du serveur et le délai lu dans Retry-After", async () => {
+    const envoi = fetchQuiRepond(
+      Response.json(
+        { code: "QUOTA_IP", message: "Limite atteinte. Réessayez dans 10 minutes." },
+        { status: 429, headers: { "retry-after": "600" } },
+      ),
+    );
+    const resultat = await envoyerCV(fichierPdf(), envoi);
+    expect(resultat).toEqual({
+      ok: false,
+      code: "QUOTA_IP",
+      message: "Limite atteinte. Réessayez dans 10 minutes.",
+      attenteSecondes: 600,
+    });
+  });
+
+  it("429 sans JSON : message clair avec le délai d'attente", async () => {
+    const envoi = fetchQuiRepond(new Response("Too Many Requests", { status: 429, headers: { "retry-after": "120" } }));
+    const resultat = await envoyerCV(fichierPdf(), envoi);
+    expect(resultat).toMatchObject({ ok: false, code: "QUOTA_IP", attenteSecondes: 120 });
+    if (!resultat.ok) expect(resultat.message).toMatch(/2 minutes/);
+  });
+
+  it("422 et 502 : messages clairs, même sans JSON", async () => {
+    const r422 = await envoyerCV(fichierPdf(), fetchQuiRepond(new Response("x", { status: 422 })));
+    expect(r422).toMatchObject({ ok: false, code: "EXTRACTION_IMPOSSIBLE" });
+    if (!r422.ok) expect(r422.message).toMatch(/n'ont pas pu être extraites/);
+    const r502 = await envoyerCV(fichierPdf(), fetchQuiRepond(new Response("Bad Gateway", { status: 502 })));
+    expect(r502).toMatchObject({ ok: false, code: "MODELE_INDISPONIBLE" });
+    if (!r502.ok) expect(r502.message).toMatch(/ne répond pas/);
+  });
+
   it("envoie le fichier en multipart, dans le champ « file »", async () => {
     const envoi = fetchQuiRepond(
-      Response.json({ code: "EXTRACTION_PAS_ENCORE_DISPONIBLE", message: "Bientôt." }, { status: 501 }),
+      Response.json({ code: "EXTRACTION_IMPOSSIBLE", message: "Extraction impossible." }, { status: 422 }),
     );
     await envoyerCV(fichierPdf(100, "mon-cv.pdf"), envoi);
     const [url, options] = envoi.mock.calls[0]!;

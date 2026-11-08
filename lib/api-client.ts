@@ -5,24 +5,33 @@
  * prudence : au-delà de 4,5 Mo, Vercel répond lui-même 413 avec une page qui n'est
  * pas du JSON. Quoi qu'il arrive, l'appelant reçoit un message clair en français.
  */
+import { z } from "zod";
+import { formaterDelai } from "@/lib/delai";
 import type { CodeErreur, ReponseErreur } from "@/lib/erreurs";
 import { TAILLE_MAX_OCTETS } from "@/lib/limites";
-import type { FicheCV } from "@/lib/schemas";
+import { FicheCVSchema } from "@/lib/schemas";
 
-/** Réponse attendue de la route en cas de succès (à partir de T2). */
-export interface ReponseExtraction {
-  fiche: FicheCV;
-  aVerifier: string[];
-  modele: string;
-  dureeMs: number;
-}
+/** Réponse de la route en cas de succès, validée par Zod avant tout affichage. */
+export const ReponseExtractionSchema = z.object({
+  fiche: FicheCVSchema,
+  aVerifier: z.array(z.string()),
+  modele: z.string().min(1),
+  dureeMs: z.number().nonnegative(),
+});
+export type ReponseExtraction = z.infer<typeof ReponseExtractionSchema>;
 
 /** Codes propres au navigateur, quand la réponse du serveur est inexploitable. */
 export type CodeClient = "RESEAU" | "REPONSE_INATTENDUE";
 
 export type ResultatEnvoi =
   | { ok: true; donnees: ReponseExtraction }
-  | { ok: false; code: CodeErreur | CodeClient; message: string };
+  | {
+      ok: false;
+      code: CodeErreur | CodeClient;
+      message: string;
+      /** Pour un 429 : délai d'attente en secondes, lu dans l'en-tête Retry-After. */
+      attenteSecondes?: number;
+    };
 
 const MESSAGE_TROP_LOURD =
   "Le fichier dépasse 4 Mo. Choisissez un PDF plus léger.";
@@ -62,15 +71,40 @@ function estReponseErreur(valeur: unknown): valeur is ReponseErreur {
   return typeof v.code === "string" && typeof v.message === "string";
 }
 
-/** Message à afficher quand la réponse n'est pas du JSON (proxy, hébergeur…). */
-function messageSansJson(statut: number): string {
+/** Délai lu dans l'en-tête Retry-After (en secondes), ou undefined s'il est absent ou illisible. */
+function lireAttente(reponse: Response): number | undefined {
+  const valeur = Number(reponse.headers.get("retry-after"));
+  return Number.isFinite(valeur) && valeur > 0 ? valeur : undefined;
+}
+
+/** Message à afficher quand la réponse n'est pas exploitable (pas du JSON, ou JSON inattendu). */
+function messageSansJson(statut: number, attente?: number): string {
   if (statut === 413) {
     return "Le fichier est trop lourd pour être envoyé (limite de l'hébergement : 4,5 Mo). Choisissez un PDF de 4 Mo au plus.";
+  }
+  if (statut === 429) {
+    const delai = attente ? ` Réessayez dans ${formaterDelai(attente)}.` : " Réessayez plus tard.";
+    return `Trop d'analyses demandées.${delai} Les CV fictifs restent disponibles.`;
+  }
+  if (statut === 422) {
+    return "Les informations de ce CV n'ont pas pu être extraites de façon fiable. Essayez un autre fichier, ou un CV fictif.";
+  }
+  if (statut === 502 || statut === 503 || statut === 504) {
+    return "Le service d'analyse ne répond pas pour le moment. Réessayez dans quelques minutes, ou choisissez un CV fictif.";
   }
   if (statut >= 500) {
     return "Le serveur ne répond pas correctement pour le moment. Réessayez dans quelques minutes.";
   }
   return `Réponse inattendue du serveur (erreur ${statut}). Réessayez ou choisissez un autre fichier.`;
+}
+
+/** Code à renvoyer quand le corps de la réponse ne dit rien d'exploitable. */
+function codeSansJson(statut: number): CodeErreur | CodeClient {
+  if (statut === 413) return "FICHIER_TROP_LOURD";
+  if (statut === 429) return "QUOTA_IP";
+  if (statut === 422) return "EXTRACTION_IMPOSSIBLE";
+  if (statut === 502 || statut === 503 || statut === 504) return "MODELE_INDISPONIBLE";
+  return "REPONSE_INATTENDUE";
 }
 
 /**
@@ -98,28 +132,35 @@ export async function envoyerCV(
     };
   }
 
+  const attente = reponse.status === 429 ? lireAttente(reponse) : undefined;
+  const echec = (code: CodeErreur | CodeClient, message: string): ResultatEnvoi =>
+    attente === undefined ? { ok: false, code, message } : { ok: false, code, message, attenteSecondes: attente };
+
   // On ne lit du JSON que si le serveur annonce du JSON.
   const typeContenu = reponse.headers.get("content-type") ?? "";
   if (!typeContenu.toLowerCase().includes("application/json")) {
-    const code: CodeErreur | CodeClient =
-      reponse.status === 413 ? "FICHIER_TROP_LOURD" : "REPONSE_INATTENDUE";
-    return { ok: false, code, message: messageSansJson(reponse.status) };
+    return echec(codeSansJson(reponse.status), messageSansJson(reponse.status, attente));
   }
 
   let corps: unknown;
   try {
     corps = await reponse.json();
   } catch {
-    return { ok: false, code: "REPONSE_INATTENDUE", message: messageSansJson(reponse.status) };
+    return echec("REPONSE_INATTENDUE", messageSansJson(reponse.status, attente));
   }
 
   if (!reponse.ok) {
-    if (estReponseErreur(corps)) {
-      return { ok: false, code: corps.code, message: corps.message };
-    }
-    return { ok: false, code: "REPONSE_INATTENDUE", message: messageSansJson(reponse.status) };
+    if (estReponseErreur(corps)) return echec(corps.code, corps.message);
+    return echec(codeSansJson(reponse.status), messageSansJson(reponse.status, attente));
   }
 
-  // Le contenu de la fiche sera validé par Zod en T2, avant tout affichage.
-  return { ok: true, donnees: corps as ReponseExtraction };
+  // La fiche est validée par Zod avant tout affichage, même si le serveur l'a déjà fait.
+  const donnees = ReponseExtractionSchema.safeParse(corps);
+  if (!donnees.success) {
+    return echec(
+      "REPONSE_INATTENDUE",
+      "La fiche reçue est incomplète ou mal formée. Réessayez, ou choisissez un CV fictif.",
+    );
+  }
+  return { ok: true, donnees: donnees.data };
 }

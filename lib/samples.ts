@@ -6,7 +6,22 @@
  * Leurs fiches de référence, vraies sorties du modèle, arriveront en T2 dans public/samples/.
  */
 
-export type ProfilCV = "bon" | "moyen" | "hors-sujet" | "incomplet" | "deux-colonnes" | "scanne";
+import { z } from "zod";
+import { FicheCVSchema } from "@/lib/schemas";
+
+/**
+ * Fiche de référence d'un CV fictif (public/samples/<id>.json) : exactement ce que le modèle
+ * a produit lors de l'évaluation (scripts/eval.ts --ecrire-references), jamais retouchée.
+ */
+export const FicheReferenceSchema = z.object({
+  fiche: FicheCVSchema,
+  aVerifier: z.array(z.string()),
+  modele: z.string().min(1),
+  genereLe: z.iso.datetime(),
+});
+export type FicheReference = z.infer<typeof FicheReferenceSchema>;
+
+export type ProfilCV ="bon" | "moyen" | "hors-sujet" | "incomplet" | "deux-colonnes" | "scanne";
 
 export interface CVFictif {
   id: string;
