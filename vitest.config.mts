@@ -1,7 +1,8 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-// Tests unitaires de la logique de lib/, sans serveur ni navigateur.
+// Tests de la logique de lib/ (environnement Node) et des composants (fichiers .test.tsx,
+// qui demandent l'environnement jsdom par un commentaire en tête de fichier).
 export default defineConfig({
   resolve: {
     // Même alias que tsconfig.json : « @/ » désigne la racine du projet.
@@ -9,6 +10,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
   },
 });
