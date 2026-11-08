@@ -62,6 +62,9 @@ export const FicheValideeSchema = z.object({
   versionSchema: z.literal(1),
   fiche: FicheCVSchema,
   champsCorriges: z.number().int().min(0), // champs modifiés par l'humain
+  // Chemins (ex. « contact.telephone ») encore « à vérifier » au moment de la validation :
+  // ni confirmés ni corrigés (« Valider quand même »). Liste vide si tout est vérifié.
+  nonVerifiees: z.array(z.string()),
   valideeLe: z.iso.datetime(),
   modele: z.string().min(1),
 });

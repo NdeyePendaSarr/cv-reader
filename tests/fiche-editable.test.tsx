@@ -81,6 +81,11 @@ describe("FicheEditable", () => {
     await user.click(within(dialogue).getByRole("button", { name: "Valider quand même" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(boutonTelecharger()).toHaveProperty("disabled", false);
+
+    // « Valider quand même » garde la trace des valeurs non vérifiées dans le fichier.
+    await user.click(boutonTelecharger());
+    const { contenu } = await lireTelechargement();
+    expect(contenu.nonVerifiees).toEqual(["identite.ville", "contact.email"]);
   });
 
   it("« Revenir vérifier » ferme la boîte et place le focus sur le premier champ à vérifier", async () => {
@@ -136,7 +141,7 @@ describe("FicheEditable", () => {
     const { nom, contenu } = await lireTelechargement();
     expect(nom).toMatch(/^fiche-chloe-demo-\d{4}-\d{2}-\d{2}\.json$/);
     expect(FicheValideeSchema.safeParse(contenu).success).toBe(true);
-    expect(contenu).toMatchObject({ versionSchema: 1, champsCorriges: 1, modele: "claude-haiku-5-5" });
+    expect(contenu).toMatchObject({ versionSchema: 1, champsCorriges: 1, nonVerifiees: [], modele: "claude-haiku-5-5" });
     expect(contenu.fiche.identite.titre).toBe("Développeuse mobile React Native");
   });
 

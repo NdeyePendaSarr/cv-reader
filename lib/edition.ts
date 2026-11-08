@@ -251,17 +251,31 @@ export function validerEdition(edition: FicheEnEdition): ResultatValidation {
 // Fiche validée et fichier téléchargé.
 // ---------------------------------------------------------------------------
 
-/** Construit la fiche validée ({ versionSchema, fiche, champsCorriges, valideeLe, modele }), contrôlée par Zod. */
-export function construireFicheValidee(
-  originale: FicheCV,
-  edition: FicheEnEdition,
-  modele: string,
-  maintenant: Date = new Date(),
-): FicheValidee {
+/**
+ * Construit la fiche validée ({ versionSchema, fiche, champsCorriges, nonVerifiees, valideeLe, modele }),
+ * contrôlée par Zod. `nonVerifiees` garde la trace des valeurs encore « à vérifier » (chemins de la
+ * fiche extraite) quand la personne choisit « Valider quand même ».
+ */
+export function construireFicheValidee({
+  originale,
+  edition,
+  modele,
+  aVerifier,
+  confirmes,
+  maintenant = new Date(),
+}: {
+  originale: FicheCV;
+  edition: FicheEnEdition;
+  modele: string;
+  aVerifier: readonly string[];
+  confirmes: ReadonlySet<string>;
+  maintenant?: Date;
+}): FicheValidee {
   return FicheValideeSchema.parse({
     versionSchema: 1,
     fiche: versFiche(edition),
     champsCorriges: compterCorrections(originale, edition),
+    nonVerifiees: champsAVerifierRestants(edition, originale, aVerifier, confirmes).map((c) => c.origine),
     valideeLe: maintenant.toISOString(),
     modele,
   });

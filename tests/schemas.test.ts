@@ -53,10 +53,23 @@ describe("FicheValideeSchema", () => {
       versionSchema: 1,
       fiche: ficheComplete(),
       champsCorriges: 2,
+      nonVerifiees: ["contact.telephone"],
       valideeLe: "2026-11-08T10:00:00Z",
       modele: "modele-de-test",
     });
     expect(resultat.success).toBe(true);
+  });
+
+  it("exige nonVerifiees (liste vide si tout est vérifié)", () => {
+    const sansChamp = {
+      versionSchema: 1,
+      fiche: ficheComplete(),
+      champsCorriges: 0,
+      valideeLe: "2026-11-08T10:00:00Z",
+      modele: "modele-de-test",
+    };
+    expect(FicheValideeSchema.safeParse(sansChamp).success).toBe(false);
+    expect(FicheValideeSchema.safeParse({ ...sansChamp, nonVerifiees: [] }).success).toBe(true);
   });
 
   it("refuse une date qui n'est pas au format ISO", () => {
@@ -64,6 +77,7 @@ describe("FicheValideeSchema", () => {
       versionSchema: 1,
       fiche: ficheComplete(),
       champsCorriges: 0,
+      nonVerifiees: [],
       valideeLe: "8 novembre 2026",
       modele: "modele-de-test",
     });

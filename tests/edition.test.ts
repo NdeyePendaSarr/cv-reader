@@ -103,22 +103,62 @@ describe("construireFicheValidee", () => {
   it("respecte FicheValideeSchema", () => {
     const edition = depuisFiche(lea());
     edition.identite.titre = "Développeuse TypeScript";
-    const validee = construireFicheValidee(lea(), edition, "claude-haiku-5-5", new Date("2026-11-09T10:00:00Z"));
+    const validee = construireFicheValidee({
+      originale: lea(),
+      edition,
+      modele: "claude-haiku-5-5",
+      aVerifier: [],
+      confirmes: new Set(),
+      maintenant: new Date("2026-11-09T10:00:00Z"),
+    });
     expect(FicheValideeSchema.safeParse(validee).success).toBe(true);
     expect(validee).toMatchObject({
       versionSchema: 1,
       champsCorriges: 1,
+      nonVerifiees: [],
       valideeLe: "2026-11-09T10:00:00.000Z",
       modele: "claude-haiku-5-5",
     });
     expect(validee.fiche.identite.titre).toBe("Développeuse TypeScript");
   });
 
+  it("nonVerifiees : les valeurs encore « à vérifier », ni confirmées ni corrigées", () => {
+    const edition = depuisFiche(lea());
+    edition.identite.ville = "Grenoble"; // corrigée : n'est plus à vérifier
+    const validee = construireFicheValidee({
+      originale: lea(),
+      edition,
+      modele: "claude-haiku-5-5",
+      aVerifier: ["identite.ville", "contact.telephone", "competences.2", "experiences.0.fin"],
+      confirmes: new Set(["competences.2"]), // confirmée : n'est plus à vérifier
+    });
+    expect(validee.nonVerifiees).toEqual(["contact.telephone", "experiences.0.fin"]);
+  });
+
+  it("nonVerifiees : un élément supprimé n'y figure plus", () => {
+    const edition = depuisFiche(lea());
+    edition.experiences.splice(0, 1);
+    const validee = construireFicheValidee({
+      originale: lea(),
+      edition,
+      modele: "claude-haiku-5-5",
+      aVerifier: ["experiences.0.fin", "experiences.1.lieu"],
+      confirmes: new Set(),
+    });
+    expect(validee.nonVerifiees).toEqual(["experiences.1.lieu"]);
+  });
+
   it("un champ vidé donne null, jamais une chaîne vide", () => {
     const edition = depuisFiche(lea());
     edition.identite.ville = "   ";
     edition.experiences[0]!.valeur.description = "";
-    const validee = construireFicheValidee(lea(), edition, "claude-haiku-5-5");
+    const validee = construireFicheValidee({
+      originale: lea(),
+      edition,
+      modele: "claude-haiku-5-5",
+      aVerifier: [],
+      confirmes: new Set(),
+    });
     expect(validee.fiche.identite.ville).toBeNull();
     expect(validee.fiche.experiences[0]!.description).toBeNull();
     expect(JSON.stringify(validee)).not.toContain('""');

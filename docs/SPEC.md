@@ -69,6 +69,7 @@ export const FicheValideeSchema = z.object({
   versionSchema: z.literal(1),
   fiche: FicheCVSchema,
   champsCorriges: z.number().int().min(0), // champs modifiés par l'humain
+  nonVerifiees: z.array(z.string()), // chemins encore « à vérifier » à la validation ; [] si tout est vérifié
   valideeLe: z.string().datetime(),
   modele: z.string().min(1),
 });
@@ -170,7 +171,7 @@ La fiche (extraite, ou fiche de référence d'un CV fictif) devient un formulair
 - **Signalements.** « non trouvé » : champ vide (null ou liste vide). « à vérifier » : chemin présent dans `aVerifier`, ni confirmé (bouton « Confirmer »), ni modifié. Le badge disparaît dans les deux cas.
 - **Champ vidé = null.** Espaces retirés aux bords ; une valeur vide redevient `null`, jamais `""`. Une compétence ou un nom de langue vide reste une erreur (le schéma l'exige non vide) : il faut le remplir ou supprimer l'élément.
 - **Validation.** « Valider la fiche » contrôle d'abord le formulaire avec `FicheCVSchema` : les erreurs s'affichent en français sous les champs, et le focus va au premier champ en erreur. S'il reste des « à vérifier » non confirmés, une boîte de dialogue de l'application (jamais `alert()` ni `confirm()`) en donne le nombre et propose « Revenir vérifier » (focus sur le premier d'entre eux) ou « Valider quand même ».
-- **Téléchargement.** Possible seulement après la validation ; toute modification ultérieure annule la validation. Le fichier respecte `FicheValideeSchema` (`{ versionSchema: 1, fiche, champsCorriges, valideeLe, modele }`) et s'appelle `fiche-<nom-en-minuscules-sans-accents>-<AAAA-MM-JJ>.json` (date locale de validation ; `sans-nom` si le nom est vide). Il est créé dans le navigateur (`Blob`) : aucun appel réseau, rien n'est stocké.
+- **Téléchargement.** Possible seulement après la validation ; toute modification ultérieure annule la validation. Le fichier respecte `FicheValideeSchema` (`{ versionSchema: 1, fiche, champsCorriges, nonVerifiees, valideeLe, modele }`). `nonVerifiees` liste les chemins de la fiche extraite (ex. `contact.telephone`) encore « à vérifier » au moment de la validation, c'est-à-dire ni confirmés ni corrigés : il garde la trace d'un « Valider quand même » ; liste vide si tout est vérifié. `versionSchema` reste à 1 : aucun fichier de l'ancienne forme n'a été diffusé. Le fichier s'appelle `fiche-<nom-en-minuscules-sans-accents>-<AAAA-MM-JJ>.json` (date locale de validation ; `sans-nom` si le nom est vide). Il est créé dans le navigateur (`Blob`) : aucun appel réseau, rien n'est stocké.
 
 **Règle de `champsCorriges`** (`compterCorrections`, `lib/edition.ts`) :
 

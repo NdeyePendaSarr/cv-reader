@@ -2,7 +2,7 @@
 
 CV Reader extrait les informations d'un CV en PDF (identité, compétences, expériences, formations, langues) et les fait vérifier par un humain avant tout usage. La fiche validée est ensuite comparée, critère par critère, aux exigences d'une offre, sans score ni décision automatique : la décision reste humaine.
 
-> **Statut : en construction.** Tranches T0 (squelette), T1 (dépôt du PDF) et T2 (extraction structurée) en place : le PDF est contrôlé (signature, 4 Mo, 5 pages), la fiche est extraite par l'API Claude, validée par Zod, puis chaque valeur est cherchée dans le texte du PDF. T3 (validation humaine) aussi : chaque champ se corrige, les valeurs « à vérifier » se confirment, et la fiche n'est téléchargeable en JSON (avec le nombre de champs corrigés) qu'après un clic sur « Valider ». Le fichier est créé dans le navigateur, rien n'est conservé. La comparaison avec une offre (T4) reste à faire.
+> **Statut : en construction.** Tranches T0 (squelette), T1 (dépôt du PDF) et T2 (extraction structurée) en place : le PDF est contrôlé (signature, 4 Mo, 5 pages), la fiche est extraite par l'API Claude, validée par Zod, puis chaque valeur est cherchée dans le texte du PDF. T3 (validation humaine) aussi : chaque champ se corrige, les valeurs « à vérifier » se confirment, et la fiche n'est téléchargeable en JSON (avec le nombre de champs corrigés et la liste des valeurs laissées « à vérifier ») qu'après un clic sur « Valider ». Le fichier est créé dans le navigateur, rien n'est conservé. La comparaison avec une offre (T4) reste à faire.
 
 Limite de 4 Mo, imposée par l'hébergement ; 5 Mo possibles avec un envoi direct vers un stockage, prévu en évolution.
 

@@ -247,7 +247,7 @@ export default function FicheEditable({
 
   function finaliser() {
     setDialogue(false);
-    setValidee(construireFicheValidee(fiche, edition, modele));
+    setValidee(construireFicheValidee({ originale: fiche, edition, modele, aVerifier, confirmes }));
     setFocusCible("bouton-telecharger");
   }
 
