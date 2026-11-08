@@ -1,0 +1,66 @@
+{
+  "fiche": {
+    "identite": {
+      "nomComplet": "Hugo Exemplaire",
+      "titre": "Intégrateur front-end",
+      "ville": "Nantes",
+      "pays": "France"
+    },
+    "contact": {
+      "email": "hugo.exemplaire@example.com",
+      "telephone": "06 39 98 45 67",
+      "linkedin": null,
+      "github": null,
+      "siteWeb": null
+    },
+    "competences": [
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "React",
+      "Tailwind",
+      "Figma",
+      "Git"
+    ],
+    "experiences": [
+      {
+        "poste": "Intégrateur front-end",
+        "entreprise": "Agence Imaginaire",
+        "lieu": "Nantes",
+        "debut": "Avril 2022",
+        "fin": "en cours",
+        "description": "Intégration de maquettes Figma en React et Tailwind. Utilisation de GitHub Copilot."
+      },
+      {
+        "poste": "Stagiaire webdesigner",
+        "entreprise": "Studio Exemple",
+        "lieu": "Rennes",
+        "debut": "Janvier 2021",
+        "fin": "Juin 2021",
+        "description": "Création de sites vitrines en HTML et CSS."
+      }
+    ],
+    "formations": [
+      {
+        "diplome": "BUT Métiers du multimédia et de l'internet",
+        "etablissement": "IUT Fictif de Nantes",
+        "debut": "2019",
+        "fin": "2022"
+      }
+    ],
+    "langues": [
+      {
+        "langue": "Français",
+        "niveau": "langue maternelle"
+      },
+      {
+        "langue": "Anglais",
+        "niveau": "lu (B1)"
+      }
+    ],
+    "langueDuCV": "fr"
+  },
+  "aVerifier": [],
+  "modele": "claude-haiku-5-5",
+  "genereLe": "2026-11-08T19:23:39.823Z"
+}

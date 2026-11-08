@@ -10,6 +10,7 @@
  * --ecrire-references écrit public/samples/<id>.json = { fiche, aVerifier, modele, genereLe },
  * exactement ce que le modèle a produit. Ces fichiers ne sont jamais retouchés à la main.
  */
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -320,7 +321,9 @@ async function principal(): Promise<void> {
   const date = new Date().toISOString().slice(0, 10);
   const dossierRapport = join(RACINE, "docs", "eval");
   await mkdir(dossierRapport, { recursive: true });
-  const chemin = join(dossierRapport, `${date}-${modele}.md`);
+  // Un rapport existant n'est jamais écrasé : un nouveau passage le même jour reçoit un suffixe (-2, -3…).
+  let chemin = join(dossierRapport, `${date}-${modele}.md`);
+  for (let n = 2; existsSync(chemin); n++) chemin = join(dossierRapport, `${date}-${modele}-${n}.md`);
   await writeFile(chemin, rapport(modele, resultats, date) + "\n");
   console.log(`Rapport : ${chemin}`);
 

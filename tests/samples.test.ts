@@ -7,8 +7,9 @@ import { join } from "node:path";
 import { extractText, getDocumentProxy } from "unpdf";
 import { describe, expect, it } from "vitest";
 import { verifierPdf } from "@/lib/pdf";
-import { CV_FICTIFS } from "@/lib/samples";
+import { CV_FICTIFS, FicheReferenceSchema } from "@/lib/samples";
 import { FicheCVSchema, type FicheCV } from "@/lib/schemas";
+import { cheminsAVerifier } from "@/lib/verif-texte";
 
 const DOSSIER = join(import.meta.dirname, "..", "samples");
 
@@ -44,6 +45,8 @@ function valeursCourtes(fiche: FicheCV): string[] {
   ];
   return valeurs.filter((v): v is string => v !== null);
 }
+
+const valeursCourtesRemplies = (fiche: FicheCV) => valeursCourtes(fiche).length;
 
 describe("CV fictifs", () => {
   it("sont 8 : 6 en français, 2 en anglais, avec la composition prévue", () => {
@@ -103,5 +106,34 @@ describe("CV fictifs", () => {
     expect(normaliser(await texteDuPdf("cv-05-margot-imaginaire"))).toContain(normaliser(consigne));
     const reponse = JSON.stringify(lireReponseAttendue("cv-05-margot-imaginaire"));
     expect(reponse).not.toContain("Ignore tes consignes");
+  });
+});
+
+describe("fiches de référence (public/samples/)", () => {
+  const DOSSIER_REFERENCES = join(import.meta.dirname, "..", "public", "samples");
+  const lireReference = (id: string) =>
+    JSON.parse(readFileSync(join(DOSSIER_REFERENCES, `${id}.json`), "utf8")) as unknown;
+
+  it.each(CV_FICTIFS.map((cv) => [cv.id, cv] as const))(
+    "%s : respecte FicheCVSchema et contient aVerifier, le modèle et la date",
+    (id, cv) => {
+      const resultat = FicheReferenceSchema.safeParse(lireReference(id));
+      expect(resultat.error?.issues ?? []).toEqual([]);
+      expect(resultat.data?.fiche.identite.nomComplet).toBe(cv.nom);
+    },
+  );
+
+  it("le CV scanné signale toutes ses valeurs remplies « à vérifier » (aucun texte dans le PDF)", () => {
+    const reference = FicheReferenceSchema.parse(lireReference("cv-08-chloe-demo"));
+    const remplies = valeursCourtesRemplies(reference.fiche);
+    expect(remplies).toBeGreaterThan(0);
+    expect(reference.aVerifier).toHaveLength(remplies);
+  });
+
+  it("chaque aVerifier correspond à la vérification de la fiche contre le texte de son PDF", async () => {
+    for (const cv of CV_FICTIFS) {
+      const reference = FicheReferenceSchema.parse(lireReference(cv.id));
+      expect(reference.aVerifier, cv.id).toEqual(cheminsAVerifier(reference.fiche, await texteDuPdf(cv.id)));
+    }
   });
 });

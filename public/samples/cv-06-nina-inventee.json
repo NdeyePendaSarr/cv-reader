@@ -1,0 +1,64 @@
+{
+  "fiche": {
+    "identite": {
+      "nomComplet": "Nina Inventée",
+      "titre": "Développeuse web junior",
+      "ville": "Lille",
+      "pays": null
+    },
+    "contact": {
+      "email": "nina.inventee@example.com",
+      "telephone": null,
+      "linkedin": null,
+      "github": null,
+      "siteWeb": null
+    },
+    "competences": [
+      "JavaScript",
+      "Node.js",
+      "Express",
+      "MongoDB",
+      "Git"
+    ],
+    "experiences": [
+      {
+        "poste": "Développeuse web (alternance)",
+        "entreprise": "Startup Fictive",
+        "lieu": "Lille",
+        "debut": null,
+        "fin": null,
+        "description": "API Express et MongoDB, petites fonctionnalités en JavaScript."
+      },
+      {
+        "poste": "Développeuse bénévole",
+        "entreprise": "Association Exemple",
+        "lieu": null,
+        "debut": "2023",
+        "fin": null,
+        "description": "Site de l'association en JavaScript."
+      }
+    ],
+    "formations": [
+      {
+        "diplome": "Titre professionnel Développeur web",
+        "etablissement": "École Exemple du Numérique",
+        "debut": null,
+        "fin": null
+      }
+    ],
+    "langues": [
+      {
+        "langue": "Français",
+        "niveau": null
+      },
+      {
+        "langue": "Anglais",
+        "niveau": "scolaire"
+      }
+    ],
+    "langueDuCV": "fr"
+  },
+  "aVerifier": [],
+  "modele": "claude-haiku-5-5",
+  "genereLe": "2026-11-08T19:23:39.823Z"
+}

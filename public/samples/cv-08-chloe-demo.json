@@ -1,0 +1,81 @@
+{
+  "fiche": {
+    "identite": {
+      "nomComplet": "Chloé Démo",
+      "titre": "Développeuse mobile",
+      "ville": "Toulouse",
+      "pays": "France"
+    },
+    "contact": {
+      "email": "chloe.demo@example.com",
+      "telephone": "06 39 98 56 78",
+      "linkedin": null,
+      "github": null,
+      "siteWeb": null
+    },
+    "competences": [
+      "React Native",
+      "Expo",
+      "TypeScript",
+      "Firebase",
+      "Git"
+    ],
+    "experiences": [
+      {
+        "poste": "Développeuse mobile",
+        "entreprise": "Appli Fictive SARL",
+        "lieu": "Toulouse",
+        "debut": "Mai 2021",
+        "fin": "en cours",
+        "description": "Applications React Native et Expo, publication sur les magasins d'applications."
+      }
+    ],
+    "formations": [
+      {
+        "diplome": "Master Génie logiciel",
+        "etablissement": "Université Imaginaire de Toulouse",
+        "debut": "2019",
+        "fin": "2021"
+      }
+    ],
+    "langues": [
+      {
+        "langue": "Français",
+        "niveau": "langue maternelle"
+      },
+      {
+        "langue": "Anglais",
+        "niveau": "courant"
+      }
+    ],
+    "langueDuCV": "fr"
+  },
+  "aVerifier": [
+    "identite.nomComplet",
+    "identite.titre",
+    "identite.ville",
+    "identite.pays",
+    "contact.email",
+    "contact.telephone",
+    "competences.0",
+    "competences.1",
+    "competences.2",
+    "competences.3",
+    "competences.4",
+    "experiences.0.poste",
+    "experiences.0.entreprise",
+    "experiences.0.lieu",
+    "experiences.0.debut",
+    "experiences.0.fin",
+    "formations.0.diplome",
+    "formations.0.etablissement",
+    "formations.0.debut",
+    "formations.0.fin",
+    "langues.0.langue",
+    "langues.0.niveau",
+    "langues.1.langue",
+    "langues.1.niveau"
+  ],
+  "modele": "claude-haiku-5-5",
+  "genereLe": "2026-11-08T19:23:39.823Z"
+}
