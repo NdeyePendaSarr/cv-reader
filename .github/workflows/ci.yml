@@ -1,0 +1,52 @@
+# Intégration continue : lint, types, tests, compilation, puis recherche de clé API.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Installation
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Vérification des types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Compilation
+        run: npm run build
+
+      # Échec si une clé Anthropic (préfixe « sk-ant ») apparaît dans le bundle
+      # client ou dans un fichier suivi par git. Ce fichier est exclu, puisqu'il
+      # contient le motif recherché.
+      - name: Aucune clé API dans le code ni dans le bundle client
+        run: |
+          trouve=0
+          if grep -rlI "sk-ant" .next/static; then
+            echo "::error::« sk-ant » trouvé dans .next/static"
+            trouve=1
+          fi
+          if git grep -lI "sk-ant" -- ':!.github/workflows/ci.yml'; then
+            echo "::error::« sk-ant » trouvé dans le code suivi par git"
+            trouve=1
+          fi
+          test -d .next/static || { echo "::error::.next/static absent"; exit 1; }
+          exit $trouve
