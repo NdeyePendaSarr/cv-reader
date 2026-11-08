@@ -85,7 +85,7 @@ Le rapport est écrit dans `docs/eval/AAAA-MM-JJ-<modele>.md`. L'option `--ecrir
 
 Le script retire `ANTHROPIC_BASE_URL` de son environnement avant tout appel, pour viser toujours l'API officielle, même si un outil de développement a défini cette variable.
 
-`scripts/eval-comparaison.ts` compare trois fiches de référence (Léa Fictivia, Hugo Exemplaire, Margot Imaginaire) aux critères de `samples/offre.md`, avec les mêmes précautions (confirmation, `ANTHROPIC_BASE_URL` retirée). Il écrit un rapport brut dans `docs/eval/AAAA-MM-JJ-comparaison.md`, dont la colonne « Avis » se remplit à la main. Essai du 08/11/2026 : 33 résultats, aucune justification rejetée, trois résultats jugés discutables sur des critères composés ([rapport](docs/eval/2026-11-08-comparaison.md)).
+`scripts/eval-comparaison.ts` compare trois fiches de référence (Léa Fictivia, Hugo Exemplaire, Margot Imaginaire) aux critères de `samples/offre.md`, avec les mêmes précautions (confirmation, `ANTHROPIC_BASE_URL` retirée). Il écrit un rapport brut dans `docs/eval/AAAA-MM-JJ-comparaison.md`, dont la colonne « Avis » se remplit à la main. Essai du 08/11/2026 : 33 résultats, aucune justification rejetée, trois résultats jugés discutables sur des critères composés ([rapport](docs/eval/2026-11-08-comparaison.md)). Après la règle des critères en « et » et la séparation de « Git » et « Linux » : 36 résultats jugés justes, aucune justification rejetée ([rapport bis](docs/eval/2026-11-08-comparaison-bis.md)).
 
 ```bash
 npm run eval-comparaison -- --modele claude-haiku-5-5

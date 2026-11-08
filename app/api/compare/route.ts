@@ -70,11 +70,11 @@ async function traiter(request: Request): Promise<Response> {
     if (!(erreur instanceof ErreurExtraction)) throw erreur;
     journaliser({
       evenement: "comparaison",
-      statut: erreur.code === "EXTRACTION_IMPOSSIBLE" ? "extraction_impossible" : "modele_indisponible",
+      statut: erreur.code === "MODELE_INDISPONIBLE" ? "modele_indisponible" : "comparaison_impossible",
       ...erreur.mesures,
       criteres: criteres.length,
     });
-    return erreur.code === "EXTRACTION_IMPOSSIBLE"
+    return erreur.code === "COMPARAISON_IMPOSSIBLE"
       ? reponseErreur(422, erreur.code, erreur.message)
       : reponseErreur(502, erreur.code, erreur.message);
   }

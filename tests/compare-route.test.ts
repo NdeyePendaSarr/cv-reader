@@ -88,9 +88,12 @@ describe("POST /api/compare", () => {
     expect(comparer).not.toHaveBeenCalled();
   });
 
-  it("sortie toujours invalide → 422 ; API indisponible → 502", async () => {
-    comparer.mockRejectedValueOnce(new ErreurExtraction("EXTRACTION_IMPOSSIBLE", "La comparaison n'a pas pu être faite.", mesures));
-    expect((await POST(requete({ fiche, criteres: ["React"] }))).status).toBe(422);
+  it("sortie toujours invalide → 422 COMPARAISON_IMPOSSIBLE ; API indisponible → 502", async () => {
+    comparer.mockRejectedValueOnce(new ErreurExtraction("COMPARAISON_IMPOSSIBLE", "La comparaison n'a pas pu être faite.", mesures));
+    const r422 = await POST(requete({ fiche, criteres: ["React"] }));
+    expect(r422.status).toBe(422);
+    expect(await r422.json()).toEqual({ code: "COMPARAISON_IMPOSSIBLE", message: "La comparaison n'a pas pu être faite." });
+    expect(JSON.parse(journal.mock.calls[0]![0] as string)).toMatchObject({ statut: "comparaison_impossible" });
     comparer.mockRejectedValueOnce(new ErreurExtraction("MODELE_INDISPONIBLE", "Service indisponible.", mesures));
     expect((await POST(requete({ fiche, criteres: ["React"] }))).status).toBe(502);
   });

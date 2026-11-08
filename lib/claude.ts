@@ -6,7 +6,7 @@
  *    (outil forcé refusé par Claude Sonnet 5.5, mode strict limité à 16 champs nullables : voir la spec).
  * 3. L'entrée de l'outil est validée par `FicheCVSchema.safeParse` : Zod est seul juge.
  * 4. Échec (entrée invalide, ou réponse sans appel de l'outil) : un seul nouvel essai,
- *    avec les erreurs ajoutées à la conversation. Second échec : EXTRACTION_IMPOSSIBLE.
+ *    avec les erreurs ajoutées à la conversation. Second échec : EXTRACTION_IMPOSSIBLE (422).
  *
  * Aucun réglage d'échantillonnage (`temperature`, `top_p`, `top_k`) n'est envoyé, et la réflexion
  * comme l'effort restent à leur valeur par défaut. Le PDF n'est écrit nulle part.
@@ -60,7 +60,7 @@ export interface ResultatExtraction extends Mesures {
 /** Erreur d'extraction, avec le code de l'API et les mesures déjà prises. */
 export class ErreurExtraction extends Error {
   constructor(
-    readonly code: "EXTRACTION_IMPOSSIBLE" | "MODELE_INDISPONIBLE",
+    readonly code: "EXTRACTION_IMPOSSIBLE" | "COMPARAISON_IMPOSSIBLE" | "MODELE_INDISPONIBLE",
     message: string,
     readonly mesures: Mesures,
   ) {
@@ -96,7 +96,8 @@ export interface AppelOutil<T> {
   valider: (entree: unknown) => Verification<T>;
   /** Ce que doit produire l'outil, rappelé au modèle s'il ne l'a pas appelé (ex. « la fiche complète du CV »). */
   attendu: string;
-  /** Message montré à l'utilisateur si la sortie reste invalide après le nouvel essai. */
+  /** Code (422) et message renvoyés si la sortie reste invalide après le nouvel essai. */
+  codeEchec: "EXTRACTION_IMPOSSIBLE" | "COMPARAISON_IMPOSSIBLE";
   messageEchec: string;
 }
 
@@ -104,7 +105,7 @@ export interface AppelOutil<T> {
  * Mécanique commune à l'extraction et à la comparaison :
  * appel avec l'outil en `tool_choice: auto` (non strict) → validation de son entrée →
  * en cas d'échec (entrée invalide, ou pas d'appel), un seul nouvel essai avec les erreurs →
- * second échec : EXTRACTION_IMPOSSIBLE (422). Erreur de l'API : MODELE_INDISPONIBLE (502).
+ * second échec : `codeEchec` (422 : EXTRACTION_IMPOSSIBLE ou COMPARAISON_IMPOSSIBLE). Erreur de l'API : MODELE_INDISPONIBLE (502).
  * Ni `temperature`, ni `top_p`, ni `top_k` ; réflexion et effort par défaut.
  */
 export async function appelerOutil<T>(
@@ -181,7 +182,7 @@ export async function appelerOutil<T>(
   }
 
   mesures.dureeMs = Date.now() - debut;
-  throw new ErreurExtraction("EXTRACTION_IMPOSSIBLE", appel.messageEchec, mesures);
+  throw new ErreurExtraction(appel.codeEchec, appel.messageEchec, mesures);
 }
 
 /**
@@ -210,6 +211,7 @@ export async function extraire(
         return r.success ? { ok: true, donnees: r.data } : { ok: false, erreurs: listerErreursZod(r.error.issues) };
       },
       attendu: "la fiche complète du CV",
+      codeEchec: "EXTRACTION_IMPOSSIBLE",
       messageEchec:
         "Les informations de ce CV n'ont pas pu être extraites de façon fiable. Essayez un autre fichier, ou un CV fictif.",
     },

@@ -1,11 +1,11 @@
 /**
  * Essai réel de la comparaison (lancé à la main, jamais en CI : il consomme des crédits).
  *
- * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--oui]
+ * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--oui]
  *
  * Compare les fiches de référence de trois CV fictifs (public/samples/) aux critères de
  * samples/offre.md, avec lib/compare.ts (même code qu'en production, contrôle anti-invention compris).
- * Écrit un rapport brut dans docs/eval/AAAA-MM-JJ-comparaison.md : résultat et justification par
+ * Écrit un rapport brut dans docs/eval/AAAA-MM-JJ-comparaison[-<suffixe>].md : résultat et justification par
  * critère, justifications rejetées, jetons et durée. La colonne « Avis » est à remplir par une personne.
  */
 import { existsSync } from "node:fs";
@@ -38,11 +38,17 @@ function lireArguments() {
     console.error("Option --modele obligatoire. Exemple : npm run eval-comparaison -- --modele claude-haiku-5-5");
     process.exit(1);
   }
-  return { modele, sansQuestion: args.includes("--oui") };
+  const j = args.indexOf("--suffixe");
+  const suffixe = j >= 0 ? args[j + 1] : undefined;
+  if (suffixe !== undefined && !/^[a-z0-9-]+$/.test(suffixe)) {
+    console.error("--suffixe : lettres minuscules, chiffres et tirets seulement.");
+    process.exit(1);
+  }
+  return { modele, suffixe, sansQuestion: args.includes("--oui") };
 }
 
 async function principal(): Promise<void> {
-  const { modele, sansQuestion } = lireArguments();
+  const { modele, suffixe, sansQuestion } = lireArguments();
   const criteres = extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
   console.log(`Modèle : ${modele} · ${criteres.length} critères · ${IDS.length} fiches`);
   console.log(`Appels prévus à l'API : ${IDS.length} (jusqu'à ${2 * IDS.length} avec les nouveaux essais).`);
@@ -118,8 +124,9 @@ async function principal(): Promise<void> {
   ];
   const dossier = join(RACINE, "docs", "eval");
   await mkdir(dossier, { recursive: true });
-  let chemin = join(dossier, `${date}-comparaison.md`);
-  for (let n = 2; existsSync(chemin); n++) chemin = join(dossier, `${date}-comparaison-${n}.md`);
+  const base = `${date}-comparaison${suffixe ? `-${suffixe}` : ""}`;
+  let chemin = join(dossier, `${base}.md`);
+  for (let n = 2; existsSync(chemin); n++) chemin = join(dossier, `${base}-${n}.md`);
   await writeFile(chemin, [...entete, ...lignes].join("\n") + "\n");
   console.log(`Rapport : ${chemin}`);
   console.log(`Coût estimé : ${cout}`);

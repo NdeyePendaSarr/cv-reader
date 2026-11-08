@@ -55,6 +55,21 @@ describe("contrôle anti-invention", () => {
     expect(justificationDansLaFiche("Intégration de l'API Claude pour résumer les tickets clients", fiche)).toBe(true);
   });
 
+  it("rejette un extrait coupé par « […] » ou « … » : il n'apparaît pas tel quel dans la fiche", () => {
+    const entier =
+      "Conception d'une application Next.js et PostgreSQL : requêtes, jointures et migrations avec Prisma.";
+    expect(justificationDansLaFiche(entier, fiche)).toBe(true);
+    expect(justificationDansLaFiche(`${entier} […]`, fiche)).toBe(false);
+    expect(justificationDansLaFiche("Conception d'une application […] migrations avec Prisma.", fiche)).toBe(false);
+    expect(justificationDansLaFiche("Conception d'une application… avec Prisma.", fiche)).toBe(false);
+  });
+
+  it("accepte un extrait par élément, séparés par « ; », si chacun est dans la fiche", () => {
+    expect(justificationDansLaFiche("Git ; Linux", fiche)).toBe(true);
+    expect(justificationDansLaFiche("Git ; Kubernetes", fiche)).toBe(false);
+    expect(justificationDansLaFiche("Git ;", fiche)).toBe(false);
+  });
+
   it("ne colle pas la fin d'un champ au début du suivant", () => {
     // « TypeScript » et « JavaScript » sont deux compétences voisines, pas un même champ.
     expect(justificationDansLaFiche("TypeScript JavaScript", fiche)).toBe(false);
@@ -146,13 +161,45 @@ describe("comparer", () => {
     expect(r.mesures).toMatchObject({ nouvelEssai: true, sortiesInvalides: 1 });
   });
 
-  it("sortie invalide deux fois → EXTRACTION_IMPOSSIBLE (422) avec un message propre à la comparaison", async () => {
+  it("sortie invalide deux fois → COMPARAISON_IMPOSSIBLE (422)", async () => {
     const incomplet = { resultats: sortieValide.resultats.slice(0, 1) };
     const { client } = clientSimule(incomplet, incomplet);
     const erreur = (await comparer(fiche, CRITERES, "modele-test", client).catch((e: unknown) => e)) as ErreurExtraction;
     expect(erreur).toBeInstanceOf(ErreurExtraction);
-    expect(erreur.code).toBe("EXTRACTION_IMPOSSIBLE");
+    expect(erreur.code).toBe("COMPARAISON_IMPOSSIBLE");
     expect(erreur.message).toMatch(/comparaison/);
+  });
+
+  describe("critère composé en « et » : « Git et Linux » sur une fiche sans Linux (Hugo Exemplaire)", () => {
+    const hugo: FicheCV = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "samples", "cv-03-hugo-exemplaire.json"), "utf8"),
+    );
+    const critere = ["Pratique de Git et de la ligne de commande Linux"];
+
+    it("la consigne exige chaque élément d'un « et », un seul pour un « ou »", () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(/reliés par « et »[\s\S]*chaque élément doit être justifié[\s\S]*« non_trouve »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/reliés par « ou »[\s\S]*un seul élément justifié suffit/);
+      expect(hugo.competences).toContain("Git");
+      expect(JSON.stringify(hugo)).not.toMatch(/linux/i);
+    });
+
+    it("modèle qui suit la consigne → non_trouve", async () => {
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      const r = await comparer(hugo, critere, "modele-test", client);
+      expect(r.resultats[0]).toMatchObject({ statut: "non_trouve", justification: null, justificationRejetee: false });
+    });
+
+    it("modèle qui cite un extrait par élément mais invente « Linux » → rejeté par le serveur, non_trouve", async () => {
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Git ; Linux" }] });
+      const r = await comparer(hugo, critere, "modele-test", client);
+      expect(r.resultats[0]).toEqual({ critere: critere[0], statut: "non_trouve", justification: null, justificationRejetee: true });
+    });
+
+    it("la même chose sur une fiche qui contient Git et Linux (Léa Fictivia) → présent", async () => {
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Git ; Linux" }] });
+      const r = await comparer(fiche, critere, "modele-test", client);
+      expect(r.resultats[0]).toMatchObject({ statut: "present", justification: "Git ; Linux", justificationRejetee: false });
+    });
   });
 
   it("une justification inventée est rejetée après coup, sans nouvel essai", async () => {

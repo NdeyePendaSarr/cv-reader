@@ -109,7 +109,8 @@ Toutes les erreurs ont la même forme : `{ code, message }`, avec un message en 
 | 400 | `TROP_DE_PAGES` | Plus de 5 pages |
 | 400 | `ENTREE_INVALIDE` | Corps de requête qui ne respecte pas le schéma |
 | 413 | `FICHIER_TROP_LOURD` | Au-delà de 4 Mo (contrôle serveur, en plus de celui du navigateur) |
-| 422 | `EXTRACTION_IMPOSSIBLE` | Sortie du modèle toujours invalide après le nouvel essai |
+| 422 | `EXTRACTION_IMPOSSIBLE` | Extraction : sortie du modèle toujours invalide après le nouvel essai |
+| 422 | `COMPARAISON_IMPOSSIBLE` | Comparaison : sortie du modèle toujours invalide après le nouvel essai (schéma, ou nombre et ordre des critères) |
 | 429 | `QUOTA_IP` | Quota de la route atteint (5 par heure ou 15 par jour) ; en-tête `Retry-After` |
 | 429 | `PLAFOND_GLOBAL` | 100 appels au modèle du jour atteints ; l'interface propose les CV fictifs |
 | 500 | `ERREUR_INTERNE` | Erreur inattendue côté serveur, par exemple une variable d'environnement manquante (`CLAUDE_MODEL`, `IP_HASH_SECRET`, `KV_REST_API_*`). Le message reste générique ; le nom de l'erreur est écrit dans les journaux, jamais de contenu du CV |
@@ -184,15 +185,16 @@ La fiche (extraite, ou fiche de référence d'un CV fictif) devient un formulair
 
 La comparaison part de la fiche **validée par l'humain**, jamais du PDF : elle porte donc sur des données déjà vérifiées. Le modèle sert à reconnaître les équivalences (« PostgreSQL » pour « bases de données SQL »), et le serveur contrôle chaque justification.
 
-- Même mécanique que l'extraction (`appelerOutil`, `lib/claude.ts`) : outil `enregistrer_comparaison` en `tool_choice: auto` non strict, schéma `z.toJSONSchema(ComparaisonSchema)`, validation par `ComparaisonSchema`, un seul nouvel essai, ni `temperature` ni `top_p`. Consigne système dans `lib/compare.ts` (`CONSIGNE_COMPARAISON`) : uniquement la fiche fournie, justification recopiée telle quelle d'un seul champ, rien d'inventé, aucun score ni avis global, fiche et critères traités comme des données.
+- Même mécanique que l'extraction (`appelerOutil`, `lib/claude.ts`) : outil `enregistrer_comparaison` en `tool_choice: auto` non strict, schéma `z.toJSONSchema(ComparaisonSchema)`, validation par `ComparaisonSchema`, un seul nouvel essai, ni `temperature` ni `top_p`. Consigne système dans `lib/compare.ts` (`CONSIGNE_COMPARAISON`) : uniquement la fiche fournie, justification recopiée telle quelle d'un champ (ni « … » ni « […] »), rien d'inventé, aucun score ni avis global, fiche et critères traités comme des données.
 - Un résultat par critère envoyé, dans le même ordre, sans critère ajouté ni retiré : sinon la sortie est **invalide** et relancée une fois (critères comparés après normalisation). Le texte renvoyé est celui du critère envoyé.
-- **Contrôle anti-invention :** une justification doit apparaître dans **un** champ de la fiche (descriptions comprises), avec la normalisation de `verif-texte` (NFKC, minuscules, espaces fusionnés). La recherche se fait champ par champ, pour qu'un extrait ne puisse pas coller deux champs voisins. Sinon, le critère passe en `non_trouve`, sa justification devient `null`, et il porte `justificationRejetee: true` ; l'interface affiche « justification du modèle introuvable dans la fiche ».
-- Sortie toujours invalide après le nouvel essai : `422 EXTRACTION_IMPOSSIBLE`, le code du tableau des erreurs pour une sortie du modèle invalide, avec un message propre à la comparaison.
+- **Critères composés (décision du 08/11, T4-bis) :** des éléments reliés par « et » (« Git et Linux ») doivent **tous** être justifiés, sinon `non_trouve` ; la justification donne alors un extrait par élément, séparés par « ; ». Des éléments reliés par « ou » (« n8n, Make ou Zapier ») sont satisfaits par un seul. Cette règle est dans la consigne : le serveur ne peut pas vérifier qu'un « et » a bien reçu un extrait par élément, mais il contrôle chaque extrait fourni. Dans `samples/offre.md`, « Git » et « ligne de commande Linux » sont deux critères séparés.
+- **Contrôle anti-invention :** chaque extrait de la justification (séparés par « ; ») doit apparaître dans **un** champ de la fiche (descriptions comprises), avec la normalisation de `verif-texte` (NFKC, minuscules, espaces fusionnés). La recherche se fait champ par champ, pour qu'un extrait ne puisse pas coller deux champs voisins ; un extrait coupé (« […] », « … ») n'apparaît pas tel quel, il est donc rejeté. Sinon, le critère passe en `non_trouve`, sa justification devient `null`, et il porte `justificationRejetee: true` ; l'interface affiche « justification du modèle introuvable dans la fiche ».
+- Sortie toujours invalide après le nouvel essai : `422 COMPARAISON_IMPOSSIBLE`.
 - Ordre dans la route : corps validé par Zod (une requête invalide ne consomme pas de quota) → quota `compare` → modèle → contrôle anti-invention → journal (compteurs seulement : nombre de critères, justifications rejetées) → 200.
 - La comparaison n'est proposée qu'après la validation de la fiche ; une modification ultérieure la retire jusqu'à la prochaine validation. Les critères d'exemple viennent de `samples/offre.md`, lus à la compilation de la page.
 - Aucun score, aucun pourcentage, aucun total, aucun classement. L'écran affiche : « Aide à la lecture. La décision reste humaine. »
 
-Essai réel du 08/11 (Claude Haiku 5.5, trois fiches de référence, 11 critères) : [docs/eval/2026-11-08-comparaison.md](eval/2026-11-08-comparaison.md).
+Essais réels du 08/11 (Claude Haiku 5.5, trois fiches de référence) : [premier essai, 11 critères](eval/2026-11-08-comparaison.md), puis [essai bis, 12 critères](eval/2026-11-08-comparaison-bis.md) après la règle des critères composés.
 
 ## Limitation de débit
 

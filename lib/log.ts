@@ -8,7 +8,7 @@
 
 export interface LigneJournal {
   evenement: "extraction" | "comparaison";
-  statut: "ok" | "extraction_impossible" | "modele_indisponible";
+  statut: "ok" | "extraction_impossible" | "comparaison_impossible" | "modele_indisponible";
   dureeMs: number;
   jetonsEntree: number;
   jetonsSortie: number;

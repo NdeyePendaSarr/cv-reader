@@ -21,6 +21,7 @@ function titreErreur(code: string, nomFichier: string): string {
     case "PLAFOND_GLOBAL":
       return "Limite d'analyses atteinte";
     case "EXTRACTION_IMPOSSIBLE":
+    case "COMPARAISON_IMPOSSIBLE":
       return `Extraction impossible : ${nomFichier}`;
     case "MODELE_INDISPONIBLE":
     case "RESEAU":
