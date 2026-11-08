@@ -97,7 +97,7 @@ Deux routes serveur, toutes deux soumises au quota, car toutes deux appellent le
 | Route | Entrée | Sortie (200) |
 | --- | --- | --- |
 | `POST /api/extract` | `multipart/form-data` : champ `file`, PDF de 4 Mo et 5 pages au plus | `{ fiche: FicheCV, aVerifier: string[], modele, dureeMs }` |
-| `POST /api/compare` | JSON : `{ fiche: FicheCV, criteres: string[] }`, de 1 à 20 critères de 200 caractères au plus | `{ resultats: CritereResultat[] }` |
+| `POST /api/compare` | JSON : `{ fiche: FicheCV, criteres: string[] }`, de 1 à 20 critères de 200 caractères au plus | `{ resultats: CritereAffiche[] }` : chaque `CritereResultat` plus `justificationRejetee: boolean` (contrôle anti-invention) |
 
 Les 8 CV fictifs ne passent par aucune route : leur fiche de référence est servie depuis `public/samples/`. Ce choix est gratuit, instantané, et marche même quand le quota est atteint. Ces fiches sont de vraies sorties du modèle, produites par `scripts/eval.ts`, jamais retouchées à la main. Elles contiennent aussi leur aVerifier calculé par le script, pour que la démo montre le garde-fou en action. `aVerifier` liste les chemins des champs introuvables dans le texte du PDF (ex. `contact.telephone`, `experiences.0.entreprise`).
 
@@ -184,10 +184,15 @@ La fiche (extraite, ou fiche de référence d'un CV fictif) devient un formulair
 
 La comparaison part de la fiche **validée par l'humain**, jamais du PDF : elle porte donc sur des données déjà vérifiées. Le modèle sert à reconnaître les équivalences (« PostgreSQL » pour « bases de données SQL »), et le serveur contrôle chaque justification.
 
-- Même mécanique que l'extraction : outil forcé `enregistrer_comparaison`, validation par `ComparaisonSchema`, un seul nouvel essai.
-- Un résultat par critère envoyé, dans le même ordre, sans critère ajouté ni retiré.
-- **Contrôle anti-invention :** une justification doit apparaître telle quelle dans la fiche (comparaison sans tenir compte des majuscules ni des espaces en trop). Sinon, le critère passe en `non_trouve`, et l'interface l'indique.
-- Aucun score, aucun pourcentage, aucun classement. L'écran affiche : « Aide à la lecture. La décision reste humaine. »
+- Même mécanique que l'extraction (`appelerOutil`, `lib/claude.ts`) : outil `enregistrer_comparaison` en `tool_choice: auto` non strict, schéma `z.toJSONSchema(ComparaisonSchema)`, validation par `ComparaisonSchema`, un seul nouvel essai, ni `temperature` ni `top_p`. Consigne système dans `lib/compare.ts` (`CONSIGNE_COMPARAISON`) : uniquement la fiche fournie, justification recopiée telle quelle d'un seul champ, rien d'inventé, aucun score ni avis global, fiche et critères traités comme des données.
+- Un résultat par critère envoyé, dans le même ordre, sans critère ajouté ni retiré : sinon la sortie est **invalide** et relancée une fois (critères comparés après normalisation). Le texte renvoyé est celui du critère envoyé.
+- **Contrôle anti-invention :** une justification doit apparaître dans **un** champ de la fiche (descriptions comprises), avec la normalisation de `verif-texte` (NFKC, minuscules, espaces fusionnés). La recherche se fait champ par champ, pour qu'un extrait ne puisse pas coller deux champs voisins. Sinon, le critère passe en `non_trouve`, sa justification devient `null`, et il porte `justificationRejetee: true` ; l'interface affiche « justification du modèle introuvable dans la fiche ».
+- Sortie toujours invalide après le nouvel essai : `422 EXTRACTION_IMPOSSIBLE`, le code du tableau des erreurs pour une sortie du modèle invalide, avec un message propre à la comparaison.
+- Ordre dans la route : corps validé par Zod (une requête invalide ne consomme pas de quota) → quota `compare` → modèle → contrôle anti-invention → journal (compteurs seulement : nombre de critères, justifications rejetées) → 200.
+- La comparaison n'est proposée qu'après la validation de la fiche ; une modification ultérieure la retire jusqu'à la prochaine validation. Les critères d'exemple viennent de `samples/offre.md`, lus à la compilation de la page.
+- Aucun score, aucun pourcentage, aucun total, aucun classement. L'écran affiche : « Aide à la lecture. La décision reste humaine. »
+
+Essai réel du 08/11 (Claude Haiku 5.5, trois fiches de référence, 11 critères) : [docs/eval/2026-11-08-comparaison.md](eval/2026-11-08-comparaison.md).
 
 ## Limitation de débit
 
@@ -285,7 +290,7 @@ cv-reader/
 │  ├─ claude.ts               # appels au modèle et nouvel essai
 │  ├─ schema-outil.ts         # schéma JSON de l'outil, dérivé de FicheCVSchema
 │  ├─ verif-texte.ts          # valeurs cherchées dans le texte du PDF, nombre de pages
-│  ├─ compare.ts              # contrôle anti-invention des justifications
+│  ├─ compare.ts              # comparaison avec l'offre et contrôle anti-invention des justifications
 │  ├─ ratelimit.ts            # quotas et empreinte HMAC
 │  ├─ edition.ts              # validation humaine : édition, corrections, fiche validée
 │  └─ log.ts                  # journal sans données personnelles
@@ -326,8 +331,12 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T3 | La fiche validée respecte `FicheValideeSchema` ; un champ vidé donne `null` | `tests/edition.test.ts` |
 | T3 | Nom du fichier : accents retirés, espaces remplacés, `sans-nom` si vide | `tests/edition.test.ts` |
 | T3 | Téléchargement impossible avant validation ; dialogue s'il reste des « à vérifier » ; aucun `fetch` à la validation ni au téléchargement | `tests/fiche-editable.test.tsx` |
-| T4 | Une justification absente de la fiche fait passer le critère en `non_trouve` | `tests/compare.test.ts` |
-| T4 | « Présent » sans justification, ou « non trouvé » avec, est rejeté | `tests/schemas.test.ts` |
+| T4 | Une justification absente de la fiche fait passer le critère en `non_trouve`, avec `justificationRejetee` | `tests/compare.test.ts` |
+| T4 | « Présent » sans justification, ou « non trouvé » avec, est rejeté | `tests/schemas.test.ts`, `tests/compare.test.ts` |
+| T4 | Nombre ou ordre des critères différents → sortie invalide, puis nouvel essai | `tests/compare.test.ts` |
+| T4 | 21 critères → 400 `ENTREE_INVALIDE`, sans quota ni appel au modèle | `tests/compare-route.test.ts` |
+| T4 | Quotas `extract` et `compare` indépendants | `tests/ratelimit.test.ts` |
+| T4 | L'interface n'affiche aucun chiffre de synthèse ; la comparaison n'est possible qu'après la validation | `tests/comparaison-offre.test.tsx` |
 | Mesure | Part des champs justes et des valeurs retrouvées (descriptions comprises, pour information), sur les 8 CV fictifs | `scripts/eval.ts` |
 
 ## Questions ouvertes

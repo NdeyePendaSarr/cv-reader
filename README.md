@@ -2,7 +2,11 @@
 
 CV Reader extrait les informations d'un CV en PDF (identité, compétences, expériences, formations, langues) et les fait vérifier par un humain avant tout usage. La fiche validée est ensuite comparée, critère par critère, aux exigences d'une offre, sans score ni décision automatique : la décision reste humaine.
 
-> **Statut : en construction.** Tranches T0 (squelette), T1 (dépôt du PDF) et T2 (extraction structurée) en place : le PDF est contrôlé (signature, 4 Mo, 5 pages), la fiche est extraite par l'API Claude, validée par Zod, puis chaque valeur est cherchée dans le texte du PDF. T3 (validation humaine) aussi : chaque champ se corrige, les valeurs « à vérifier » se confirment, et la fiche n'est téléchargeable en JSON (avec le nombre de champs corrigés et la liste des valeurs laissées « à vérifier ») qu'après un clic sur « Valider ». Le fichier est créé dans le navigateur, rien n'est conservé. La comparaison avec une offre (T4) reste à faire.
+> **Statut : V1 complète (tranches T0 à T4), démo sur CV fictifs.**
+>
+> - **Extraction (T1, T2)** : le PDF est contrôlé (signature, 4 Mo, 5 pages), la fiche est extraite par l'API Claude, validée par Zod, puis chaque valeur est cherchée dans le texte du PDF.
+> - **Validation humaine (T3)** : chaque champ se corrige, les valeurs « à vérifier » se confirment, et la fiche n'est téléchargeable en JSON (avec le nombre de champs corrigés et la liste des valeurs laissées « à vérifier ») qu'après un clic sur « Valider ». Le fichier est créé dans le navigateur, rien n'est conservé.
+> - **Comparaison avec l'offre (T4)** : après la validation, chaque critère est « présent », avec l'extrait de la fiche qui le justifie, ou « non trouvé ». Le serveur rejette toute justification introuvable dans la fiche. Aucun score, aucun total : la décision reste humaine.
 
 Limite de 4 Mo, imposée par l'hébergement ; 5 Mo possibles avec un envoi direct vers un stockage, prévu en évolution.
 
@@ -80,6 +84,12 @@ npm run eval -- --modele claude-haiku-5-5
 Le rapport est écrit dans `docs/eval/AAAA-MM-JJ-<modele>.md`. L'option `--ecrire-references` écrit en plus les fiches de référence dans `public/samples/`, telles que le modèle les a produites.
 
 Le script retire `ANTHROPIC_BASE_URL` de son environnement avant tout appel, pour viser toujours l'API officielle, même si un outil de développement a défini cette variable.
+
+`scripts/eval-comparaison.ts` compare trois fiches de référence (Léa Fictivia, Hugo Exemplaire, Margot Imaginaire) aux critères de `samples/offre.md`, avec les mêmes précautions (confirmation, `ANTHROPIC_BASE_URL` retirée). Il écrit un rapport brut dans `docs/eval/AAAA-MM-JJ-comparaison.md`, dont la colonne « Avis » se remplit à la main. Essai du 08/11/2026 : 33 résultats, aucune justification rejetée, trois résultats jugés discutables sur des critères composés ([rapport](docs/eval/2026-11-08-comparaison.md)).
+
+```bash
+npm run eval-comparaison -- --modele claude-haiku-5-5
+```
 
 ## Variables d'environnement
 

@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "generer-cv": "tsx scripts/generer-cv.ts",
-    "eval": "tsx --env-file=.env.local scripts/eval.ts"
+    "eval": "tsx --env-file=.env.local scripts/eval.ts",
+    "eval-comparaison": "tsx --env-file=.env.local scripts/eval-comparaison.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
