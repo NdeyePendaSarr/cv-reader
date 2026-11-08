@@ -13,7 +13,7 @@ CV Reader extrait les informations d'un CV en PDF (identité, compétences, exp�
 
 ## Lancement local
 
-Prérequis : Node.js 24 ou plus récent.
+Prérequis : Node.js 24 (24.x).
 
 ```bash
 npm install
