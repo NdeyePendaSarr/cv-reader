@@ -3,7 +3,9 @@
  *
  * Chaque CV a deux fichiers dans samples/ : `<id>.pdf` (produit par
  * scripts/generer-cv.ts) et `<id>.json` (réponse attendue, écrite à la main).
- * Leurs fiches de référence, vraies sorties du modèle, arriveront en T2 dans public/samples/.
+ * Leurs fiches de référence, vraies sorties du modèle, sont dans public/samples/.
+ *
+ * Les descriptions décrivent le cas de test, jamais la personne : l'interface ne qualifie personne.
  */
 
 import { z } from "zod";
@@ -21,7 +23,8 @@ export const FicheReferenceSchema = z.object({
 });
 export type FicheReference = z.infer<typeof FicheReferenceSchema>;
 
-export type ProfilCV ="bon" | "moyen" | "hors-sujet" | "incomplet" | "deux-colonnes" | "scanne";
+/** Cas de test couvert par le CV (et non jugement sur la personne). */
+export type ProfilCV = "proche-offre" | "partiel" | "hors-sujet" | "incomplet" | "deux-colonnes" | "scanne";
 
 export interface CVFictif {
   id: string;
@@ -39,32 +42,32 @@ export const CV_FICTIFS: readonly CVFictif[] = [
     nom: "Léa Fictivia",
     titre: "Développeuse full-stack TypeScript",
     langue: "fr",
-    profil: "bon",
-    particularite: "Bon profil pour l'offre",
+    profil: "proche-offre",
+    particularite: "Cas de test : profil proche de l'offre",
   },
   {
     id: "cv-02-sam-placeholder",
     nom: "Sam Placeholder",
     titre: "Backend Developer (Node.js)",
     langue: "en",
-    profil: "bon",
-    particularite: "Bon profil, CV en anglais",
+    profil: "proche-offre",
+    particularite: "Cas de test : profil proche de l'offre, CV en anglais",
   },
   {
     id: "cv-03-hugo-exemplaire",
     nom: "Hugo Exemplaire",
     titre: "Intégrateur front-end",
     langue: "fr",
-    profil: "moyen",
-    particularite: "Profil moyen : front-end seulement",
+    profil: "partiel",
+    particularite: "Cas de test : profil partiel (front-end seulement)",
   },
   {
     id: "cv-04-robin-sample",
     nom: "Robin Sample",
     titre: "Python Developer",
     langue: "en",
-    profil: "moyen",
-    particularite: "Profil moyen, CV en anglais",
+    profil: "partiel",
+    particularite: "Cas de test : profil partiel, CV en anglais",
   },
   {
     id: "cv-05-margot-imaginaire",
@@ -72,7 +75,7 @@ export const CV_FICTIFS: readonly CVFictif[] = [
     titre: "Comptable",
     langue: "fr",
     profil: "hors-sujet",
-    particularite: "Hors sujet, contient une consigne cachée",
+    particularite: "Cas de test : CV hors sujet avec consigne cachée",
   },
   {
     id: "cv-06-nina-inventee",
@@ -80,7 +83,7 @@ export const CV_FICTIFS: readonly CVFictif[] = [
     titre: "Développeuse web junior",
     langue: "fr",
     profil: "incomplet",
-    particularite: "Incomplet : sans téléphone, dates manquantes",
+    particularite: "Cas de test : CV incomplet (sans téléphone, dates manquantes)",
   },
   {
     id: "cv-07-yanis-fictif",
@@ -88,7 +91,7 @@ export const CV_FICTIFS: readonly CVFictif[] = [
     titre: "Développeur full-stack",
     langue: "fr",
     profil: "deux-colonnes",
-    particularite: "Mise en page sur deux colonnes",
+    particularite: "Cas de test : mise en page sur deux colonnes",
   },
   {
     id: "cv-08-chloe-demo",
@@ -96,6 +99,6 @@ export const CV_FICTIFS: readonly CVFictif[] = [
     titre: "Développeuse mobile",
     langue: "fr",
     profil: "scanne",
-    particularite: "PDF scanné : image seulement, sans texte",
+    particularite: "Cas de test : PDF scanné, sans texte sélectionnable",
   },
 ];

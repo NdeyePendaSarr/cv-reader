@@ -162,6 +162,23 @@ Règles :
 
 Le modèle est lu dans la variable `CLAUDE_MODEL`, pour comparer deux modèles sur les 8 CV fictifs sans toucher au code.
 
+## Validation humaine
+
+La fiche (extraite, ou fiche de référence d'un CV fictif) devient un formulaire pré-rempli, entièrement côté navigateur. La logique vit dans `lib/edition.ts`, l'écran dans `components/FicheEditable.tsx`.
+
+- **Édition.** Chaque champ est modifiable ; les listes (compétences, expériences, formations, langues) acceptent ajout, modification et suppression. Chaque élément de liste garde une clé stable et sa position d'origine : les badges et le décompte des corrections restent justes après une suppression.
+- **Signalements.** « non trouvé » : champ vide (null ou liste vide). « à vérifier » : chemin présent dans `aVerifier`, ni confirmé (bouton « Confirmer »), ni modifié. Le badge disparaît dans les deux cas.
+- **Champ vidé = null.** Espaces retirés aux bords ; une valeur vide redevient `null`, jamais `""`. Une compétence ou un nom de langue vide reste une erreur (le schéma l'exige non vide) : il faut le remplir ou supprimer l'élément.
+- **Validation.** « Valider la fiche » contrôle d'abord le formulaire avec `FicheCVSchema` : les erreurs s'affichent en français sous les champs, et le focus va au premier champ en erreur. S'il reste des « à vérifier » non confirmés, une boîte de dialogue de l'application (jamais `alert()` ni `confirm()`) en donne le nombre et propose « Revenir vérifier » (focus sur le premier d'entre eux) ou « Valider quand même ».
+- **Téléchargement.** Possible seulement après la validation ; toute modification ultérieure annule la validation. Le fichier respecte `FicheValideeSchema` (`{ versionSchema: 1, fiche, champsCorriges, valideeLe, modele }`) et s'appelle `fiche-<nom-en-minuscules-sans-accents>-<AAAA-MM-JJ>.json` (date locale de validation ; `sans-nom` si le nom est vide). Il est créé dans le navigateur (`Blob`) : aucun appel réseau, rien n'est stocké.
+
+**Règle de `champsCorriges`** (`compterCorrections`, `lib/edition.ts`) :
+
+1. Les valeurs sont comparées après normalisation : espaces retirés aux bords, champ vide = `null`. La comparaison tient compte des majuscules.
+2. Identité, contact et langue du CV : +1 par champ feuille dont la valeur finale diffère de la valeur extraite.
+3. Listes, élément par élément d'après sa position d'origine : élément conservé → +1 par champ feuille modifié (une compétence est un champ ; une expérience en a six, description comprise ; une formation quatre ; une langue deux) ; élément supprimé → +1 ; élément ajouté → +1, quel que soit son nombre de champs.
+4. Une confirmation sans modification ne compte pas ; un champ modifié puis remis à sa valeur d'origine non plus.
+
 ## Comparaison avec l'offre
 
 La comparaison part de la fiche **validée par l'humain**, jamais du PDF : elle porte donc sur des données déjà vérifiées. Le modèle sert à reconnaître les équivalences (« PostgreSQL » pour « bases de données SQL »), et le serveur contrôle chaque justification.
@@ -269,6 +286,7 @@ cv-reader/
 │  ├─ verif-texte.ts          # valeurs cherchées dans le texte du PDF, nombre de pages
 │  ├─ compare.ts              # contrôle anti-invention des justifications
 │  ├─ ratelimit.ts            # quotas et empreinte HMAC
+│  ├─ edition.ts              # validation humaine : édition, corrections, fiche validée
 │  └─ log.ts                  # journal sans données personnelles
 ├─ samples/                   # 8 CV fictifs (.pdf) et réponses attendues (.json)
 ├─ public/samples/            # fiches de référence produites par scripts/eval.ts, jamais retouchées
@@ -303,6 +321,10 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T2 | Même IP → même empreinte, différente de l'IP en clair | `tests/ratelimit.test.ts` |
 | T2 | Sans `IP_HASH_SECRET` : l'import réussit, l'appel échoue avec une erreur explicite | `tests/ratelimit.test.ts` |
 | T2 | 6e extraction dans l'heure → 429 `QUOTA_IP` ; les comparaisons restent possibles | `tests/ratelimit.test.ts` |
+| T3 | `compterCorrections` : aucune modification → 0 ; un champ modifié → 1 ; une compétence ajoutée et une autre supprimée → 2 ; une confirmation seule → 0 | `tests/edition.test.ts` |
+| T3 | La fiche validée respecte `FicheValideeSchema` ; un champ vidé donne `null` | `tests/edition.test.ts` |
+| T3 | Nom du fichier : accents retirés, espaces remplacés, `sans-nom` si vide | `tests/edition.test.ts` |
+| T3 | Téléchargement impossible avant validation ; dialogue s'il reste des « à vérifier » ; aucun `fetch` à la validation ni au téléchargement | `tests/fiche-editable.test.tsx` |
 | T4 | Une justification absente de la fiche fait passer le critère en `non_trouve` | `tests/compare.test.ts` |
 | T4 | « Présent » sans justification, ou « non trouvé » avec, est rejeté | `tests/schemas.test.ts` |
 | Mesure | Part des champs justes et des valeurs retrouvées (descriptions comprises, pour information), sur les 8 CV fictifs | `scripts/eval.ts` |

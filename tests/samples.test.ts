@@ -55,7 +55,7 @@ describe("CV fictifs", () => {
     expect(CV_FICTIFS.filter((cv) => cv.langue === "en")).toHaveLength(2);
     const profils = CV_FICTIFS.map((cv) => cv.profil).sort();
     expect(profils).toEqual(
-      ["bon", "bon", "deux-colonnes", "hors-sujet", "incomplet", "moyen", "moyen", "scanne"],
+      ["deux-colonnes", "hors-sujet", "incomplet", "partiel", "partiel", "proche-offre", "proche-offre", "scanne"],
     );
   });
 
