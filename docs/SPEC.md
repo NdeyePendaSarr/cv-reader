@@ -111,19 +111,31 @@ Toutes les erreurs ont la même forme : `{ code, message }`, avec un message en 
 | 422 | `EXTRACTION_IMPOSSIBLE` | Sortie du modèle toujours invalide après le nouvel essai |
 | 429 | `QUOTA_IP` | Quota de la route atteint (5 par heure ou 15 par jour) ; en-tête `Retry-After` |
 | 429 | `PLAFOND_GLOBAL` | 100 appels au modèle du jour atteints ; l'interface propose les CV fictifs |
+| 500 | `ERREUR_INTERNE` | Erreur inattendue côté serveur, par exemple une variable d'environnement manquante (`CLAUDE_MODEL`, `IP_HASH_SECRET`, `KV_REST_API_*`). Le message reste générique ; le nom de l'erreur est écrit dans les journaux, jamais de contenu du CV |
 | 502 | `MODELE_INDISPONIBLE` | L'API Claude ne répond pas ou renvoie une erreur |
 
 Au-delà de 4,5 Mo, Vercel répond lui-même 413, avant la fonction, avec une réponse qui n'est pas au format `{ code, message }`. L'interface vérifie donc le `Content-Type` avant de lire le JSON, et affiche son propre message sinon.
 
 ## Appel au modèle
 
-Le PDF est envoyé tel quel à l'API Claude comme bloc `document`, et le modèle est obligé de répondre en appelant un outil dont le schéma est celui de la fiche. Sa réponse est ensuite revalidée par Zod : le schéma d'outil guide le modèle, Zod décide.
+Le PDF est envoyé tel quel à l'API Claude comme bloc `document`, et le modèle doit répondre en appelant un outil dont le schéma est celui de la fiche. Sa réponse est ensuite revalidée par Zod : le schéma d'outil guide le modèle, Zod décide.
 
 1. Convertir le PDF en base64, en mémoire.
-2. Appeler l'API avec la consigne système ci-dessous, l'outil `enregistrer_fiche` (schéma JSON généré depuis `FicheCVSchema`) et `tool_choice` forcé sur cet outil.
-3. Valider l'entrée de l'outil avec `FicheCVSchema.safeParse`.
-4. En cas d'échec : un seul nouvel essai, avec les erreurs Zod ajoutées au message. Second échec → `422 EXTRACTION_IMPOSSIBLE`.
+2. Appeler l'API avec la consigne système ci-dessous et l'outil `enregistrer_fiche` (schéma produit par `schemaPourModele()`), avec `tool_choice: { type: "auto" }`, sans mode strict.
+3. Valider l'entrée de l'outil avec `FicheCVSchema.safeParse`. Une réponse sans appel de l'outil compte comme un échec, au même titre qu'une entrée refusée par Zod ; les deux cas sont comptés à part (journal et rapports d'évaluation).
+4. En cas d'échec : un seul nouvel essai, avec les erreurs Zod (ou l'absence d'appel) ajoutées au message. Second échec → `422 EXTRACTION_IMPOSSIBLE`.
 5. Journaliser la durée et les jetons, puis renvoyer la fiche.
+
+**Choix de l'appel (décisions du 08/11).** Le même code sert pour tous les modèles : `tool_choice: auto`, outil non strict, et la règle 5 de la consigne système (« Réponds uniquement en appelant l'outil »). Deux options ont été écartées :
+
+- **Outil forcé** (`tool_choice: { type: "tool" }`) : Claude Sonnet 5.5, comme Claude Opus 5.5, le refuse avec une erreur 400 ; Claude Haiku 5.5 l'accepte. Vérifié avec `count_tokens` : « tool_choice: type "tool" and "any" are not supported for this model ». Source : [Define tools, « Forcing tool use »](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools#forcing-tool-use).
+- **Mode strict** (`strict: true`) : il accepte au plus 16 paramètres à union (`anyOf` ou tableau de types) par requête, et la fiche en compte 20 (ses champs nullables). L'API répond 400 : « Schemas contains too many parameters with union types (20 parameters…) ». Le contourner obligerait à remplacer `null` par des champs facultatifs, donc à transformer la sortie du modèle avant Zod. Sources : [Structured outputs, « Schema complexity limits »](https://platform.claude.com/docs/en/build-with-claude/structured-outputs#schema-complexity-limits) (le mode strict partage ces limites) et [Strict tool use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use). `count_tokens` ne compile pas le schéma strict : il ne détecte pas cette limite.
+
+Bloc `document` en base64 : [PDF support](https://platform.claude.com/docs/en/build-with-claude/pdf-support).
+
+**Schéma envoyé au modèle.** `schemaPourModele()` (`lib/schema-outil.ts`) renvoie `z.toJSONSchema(FicheCVSchema)` complet (`minLength`, format et motif de l'e-mail compris), sans `$schema`. Ce schéma guide le modèle ; Zod décide.
+
+**Réglages du modèle.** Ni `temperature`, ni `top_p`, ni `top_k` : ces modèles renvoient 400 pour toute valeur non par défaut. Réflexion et effort restent à leur valeur par défaut (paramètres `thinking` et `output_config.effort` non envoyés) ; les rapports d'évaluation l'indiquent.
 
 **Vérification contre le texte du PDF.** Zod contrôle la forme, pas la vérité. Le serveur extrait donc le texte du PDF (bibliothèque `unpdf`, à confirmer, qui donne aussi le nombre de pages) et cherche chaque valeur recopiée dans ce texte normalisé : minuscules, espaces et retours à la ligne fusionnés, car un CV en deux colonnes mélange l'ordre des lignes.
 
@@ -175,7 +187,8 @@ export type Verdict =
   | { ok: false; code: "QUOTA_IP" | "PLAFOND_GLOBAL"; reset: number };
 
 function creerLimites() {
-  const redis = Redis.fromEnv();
+  // Noms créés par l'intégration Upstash de Vercel (Redis.fromEnv() attend d'autres noms).
+  const redis = new Redis({ url: lireVariable("KV_REST_API_URL"), token: lireVariable("KV_REST_API_TOKEN") });
   const parRoute = (route: Route) => ({
     heure: new Ratelimit({ redis, prefix: `${route}-h`, limiter: Ratelimit.slidingWindow(5, "1 h") }),
     jour: new Ratelimit({ redis, prefix: `${route}-j`, limiter: Ratelimit.slidingWindow(15, "24 h") }),
@@ -213,7 +226,7 @@ export async function verifierQuota(route: Route, ip: string): Promise<Verdict> 
 }
 ```
 
-L'IP est obtenue avec `ipAddress(request)` du paquet `@vercel/functions` (à confirmer dans la documentation actuelle), jamais en lisant soi-même `x-forwarded-for`. Les quotas par IP sont vérifiés avant le plafond commun, pour qu'un visiteur bloqué ne consomme pas d'appel du jour. Limite connue : un visiteur bloqué par le quota du jour a quand même consommé une unité du quota horaire, ce qui est acceptable pour une démo.
+L'IP est obtenue avec `ipAddress(request)` du paquet `@vercel/functions` (confirmé le 08/11 : `ipAddress(input: Request | Headers): string | undefined`), jamais en lisant soi-même `x-forwarded-for`. Les quotas par IP sont vérifiés avant le plafond commun, pour qu'un visiteur bloqué ne consomme pas d'appel du jour. Limite connue : un visiteur bloqué par le quota du jour a quand même consommé une unité du quota horaire, ce qui est acceptable pour une démo.
 
 ## Variables d'environnement et journal
 
@@ -223,16 +236,18 @@ Penda crée et saisit elle-même chaque secret dans Vercel. Le dépôt ne contie
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Clé de l'API Claude | Oui |
 | `IP_HASH_SECRET` | Clé du HMAC des adresses IP | Oui |
-| `UPSTASH_REDIS_REST_URL` | Adresse de la base Upstash | Non |
-| `UPSTASH_REDIS_REST_TOKEN` | Jeton d'accès Upstash | Oui |
+| `KV_REST_API_URL` | Adresse REST de la base Upstash | Non |
+| `KV_REST_API_TOKEN` | Jeton d'accès Upstash (lecture et écriture) | Oui |
 | `CLAUDE_MODEL` | Modèle utilisé | Non |
 
-Aucune n'est préfixée `NEXT_PUBLIC_`. Les noms Upstash sont ceux que lit `Redis.fromEnv()` ; l'intégration via le Marketplace Vercel peut en créer d'autres, à vérifier lors de la connexion.
+Aucune n'est préfixée `NEXT_PUBLIC_`. Les noms Upstash sont ceux que crée l'intégration Upstash du Marketplace Vercel (base « quotas-demo ») ; le client est donc construit avec `new Redis({ url, token })`, et non `Redis.fromEnv()`, qui attend `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`. L'intégration crée aussi `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL` et `REDIS_URL`, inutilisées.
+
+**Limites de l'offre gratuite d'Upstash** (relevées sur le compte le 08/11) : 500 000 commandes par mois, une seule base par compte. Chaque appel à `verifierQuota` coûte quelques commandes par limite consultée (deux quotas par IP et le plafond commun) ; avec au plus 100 appels au modèle par jour, la consommation reste très loin de la limite.
 
 **Journal :** une ligne JSON par appel au modèle, sans contenu du CV ni empreinte d'IP.
 
 ```json
-{ "evenement": "extraction", "statut": "ok", "dureeMs": 0, "jetonsEntree": 0, "jetonsSortie": 0, "modele": "…", "nouvelEssai": false }
+{ "evenement": "extraction", "statut": "ok", "dureeMs": 0, "jetonsEntree": 0, "jetonsSortie": 0, "modele": "…", "nouvelEssai": false, "sansAppelOutil": 0, "sortiesInvalides": 0, "aVerifier": 0 }
 ```
 
 ## Arborescence du projet
@@ -250,6 +265,7 @@ cv-reader/
 │  ├─ schemas.ts              # schémas Zod
 │  ├─ pdf.ts                  # contrôles du fichier (signature, taille)
 │  ├─ claude.ts               # appels au modèle et nouvel essai
+│  ├─ schema-outil.ts         # schéma JSON de l'outil, dérivé de FicheCVSchema
 │  ├─ verif-texte.ts          # valeurs cherchées dans le texte du PDF, nombre de pages
 │  ├─ compare.ts              # contrôle anti-invention des justifications
 │  ├─ ratelimit.ts            # quotas et empreinte HMAC
@@ -299,6 +315,6 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 - [x] Durée d'une fonction : 300 s au maximum sur l'offre gratuite
 
   Même [documentation](https://vercel.com/docs/functions/limitations). Reste à mesurer le temps réel d'une extraction.
-- [ ] Limites de l'offre gratuite d'Upstash Redis.
+- [x] Limites de l'offre gratuite d'Upstash Redis : 500 000 commandes par mois, une base par compte (voir « Variables d'environnement et journal »).
 - [ ] PDF scanné : tester l'extraction, puis choisir entre « extraire avec un avertissement » et « refuser proprement ».
-- [ ] Version de Zod : en Zod 4, `z.string().email()` et `z.string().datetime()` deviennent `z.email()` et `z.iso.datetime()`. Adapter les schémas à la version installée.
+- [x] Version de Zod : Zod 4 installé ; les schémas utilisent `z.email()` et `z.iso.datetime()` (`lib/schemas.ts`).

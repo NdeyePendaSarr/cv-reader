@@ -38,6 +38,18 @@ npm run build      # compilation de production
 npm run generer-cv # régénère les PDF de samples/
 ```
 
+## Lancer l'évaluation
+
+`scripts/eval.ts` extrait les 8 CV fictifs avec l'API Claude et compare chaque fiche à sa réponse attendue. Il consomme des crédits : il se lance à la main, jamais en CI, et demande une confirmation avant le premier appel. Il lit `.env.local` (au moins `ANTHROPIC_API_KEY`).
+
+```bash
+npm run eval -- --modele claude-haiku-5-5
+```
+
+Le rapport est écrit dans `docs/eval/AAAA-MM-JJ-<modele>.md`. L'option `--ecrire-references` écrit en plus les fiches de référence dans `public/samples/`, telles que le modèle les a produites.
+
+Le script retire `ANTHROPIC_BASE_URL` de son environnement avant tout appel, pour viser toujours l'API officielle, même si un outil de développement a défini cette variable.
+
 ## Variables d'environnement
 
 Les noms sont listés dans [`.env.example`](.env.example). Aucune valeur n'est versionnée : les secrets sont saisis dans les réglages du projet Vercel, côté serveur uniquement, jamais avec le préfixe `NEXT_PUBLIC_`.
@@ -46,8 +58,8 @@ Les noms sont listés dans [`.env.example`](.env.example). Aucune valeur n'est v
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Clé de l'API Claude |
 | `IP_HASH_SECRET` | Clé du HMAC des adresses IP |
-| `UPSTASH_REDIS_REST_URL` | Adresse de la base Upstash Redis |
-| `UPSTASH_REDIS_REST_TOKEN` | Jeton d'accès Upstash Redis |
+| `KV_REST_API_URL` | Adresse REST de la base Upstash Redis (créée par l'intégration Vercel) |
+| `KV_REST_API_TOKEN` | Jeton d'accès Upstash Redis (créé par l'intégration Vercel) |
 | `CLAUDE_MODEL` | Modèle utilisé |
 
 ## Documentation
