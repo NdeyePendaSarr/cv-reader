@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("ComparaisonOffre", () => {
-  it("charge les critères d'exemple, compare, et affiche « présent » ou « non trouvé » par critère", async () => {
+  it("charge les critères d'exemple, compare, et affiche « présent » ou « non trouvé dans la fiche » par critère", async () => {
     const user = userEvent.setup();
     render(<ComparaisonOffre fiche={fiche} criteresExemple={EXEMPLE} />);
     expect(screen.getByText("Aide à la lecture. La décision reste humaine.")).toBeTruthy();
@@ -49,7 +49,10 @@ describe("ComparaisonOffre", () => {
     expect(liste.querySelectorAll("li")).toHaveLength(3);
     expect(liste.textContent).toContain("présent");
     expect(liste.textContent).toContain("« React »");
-    expect(liste.textContent).toContain("non trouvé");
+    // Le libellé dit « dans la fiche » : un « non trouvé » n'est pas une preuve d'absence.
+    const badges = [...liste.querySelectorAll("li span span")].map((s) => s.textContent?.trim());
+    expect(badges).toContain("non trouvé dans la fiche");
+    expect(badges).not.toContain("non trouvé");
     expect(liste.textContent).toContain("justification du modèle introuvable dans la fiche");
     // La justification rejetée reste visible, barrée, sous la mention.
     const barree = liste.querySelector("del");

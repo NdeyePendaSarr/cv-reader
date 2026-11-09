@@ -2,7 +2,8 @@
 
 /**
  * Comparaison de la fiche validée aux critères d'une offre (tranche T4).
- * Pour chaque critère : « présent » avec l'élément de la fiche qui le justifie, ou « non trouvé ».
+ * Pour chaque critère : « présent » avec l'élément de la fiche qui le justifie, ou « non trouvé dans la fiche »
+ * (libellé de la valeur `non_trouve` de l'API : ce n'est pas une preuve d'absence).
  * Aucun score, aucun pourcentage, aucun total : la décision reste humaine.
  */
 import { useId, useState } from "react";
@@ -121,8 +122,9 @@ export default function ComparaisonOffre({
                   </span>
                 ) : (
                   <span className="flex flex-wrap items-baseline gap-2 text-sm">
+                    {/* « dans la fiche » : un critère non trouvé n'est pas une preuve d'absence (valeur API : non_trouve). */}
                     <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                      non trouvé
+                      non trouvé dans la fiche
                     </span>
                     {r.justificationRejetee && (
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">

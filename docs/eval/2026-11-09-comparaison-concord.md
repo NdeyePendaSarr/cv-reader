@@ -21,11 +21,11 @@ Réglages de la consigne au moment de l'essai (T4-sexies) : durées minimales, m
 
 ## Avis d'ensemble
 
-- **14 résultats jugés justes, 1 discutable** (projet consultable), aucune justification rejetée, aucun nouvel essai.
+- **15 résultats jugés justes**, aucune justification rejetée, aucun nouvel essai.
 - **Interfaces web et API** : les deux critères sortent « non trouvé », de façon cohérente ; la phrase « Application interne en React et Node.js » ne nomme ni l'un ni l'autre.
 - **Anglais écrit** : « non trouvé » ; « Anglais : technique » est un niveau, pas une pratique de l'écrit.
 - **Entre 0 et 2 ans** : « non trouvé », correct, puisque l'expérience de développement dépasse quatre ans.
-- **Projet consultable** : discutable ; la règle 7 a été appliquée à un site web personnel, que le critère accepte pourtant. Une précision possible de la consigne : une adresse de site n'est un projet que si la fiche dit ce qu'elle présente.
+- **Projet consultable** : « non trouvé », juste : un site personnel ou une adresse de profil n'est pas un projet (règle 7, confirmée par l'autrice le 09/11). Le critère était ambigu ; formulation proposée : « Lien vers un projet réalisé : dépôt, démo ou site du projet ».
 - **Effet de la règle 7** : le modèle devient strict ; HTML et CSS sortent « non trouvé » faute d'être écrits, alors qu'un développeur full-stack les connaît probablement. Ce sont des « non trouvé » au sens de la fiche, pas des preuves d'absence.
 - Limites : une seule exécution, une seule fiche fictive, avis non relus.
 
@@ -46,7 +46,7 @@ Jetons : 2812 en entrée, 1650 en sortie · durée : 7.3 s · nouvel essai : non
 | Développement d'API | non trouvé | — | Juste au sens strict, et cohérent avec le critère précédent : aucune API n'est écrite dans la fiche. |
 | Rédaction de documentation technique | non trouvé | — | Juste : aucune documentation mentionnée. |
 | Communication écrite en anglais | non trouvé | — | Juste : la fiche donne seulement « Anglais : technique », un niveau, pas une pratique de l'écrit. |
-| Un projet réalisé consultable : GitHub, site web ou démo | non trouvé | — | **Discutable** : le critère accepte explicitement un « site web », et la fiche en contient un (« https://yanis.example.com »). Le modèle l'a traité comme une adresse de profil (règle 7) ; or rien dans la fiche ne dit si ce site est un projet réalisé ou une simple page de présentation. À vérifier par une personne. |
+| Un projet réalisé consultable : GitHub, site web ou démo | non trouvé | — | Juste : un site personnel n'est pas un projet ; critère mal formulé, à réécrire en « Lien vers un projet réalisé : dépôt, démo ou site du projet ». |
 | Expérience de travail à distance | non trouvé | — | Juste : aucune mention de travail à distance. |
 | Contribution à un projet open source | non trouvé | — | Juste : aucune contribution open source mentionnée. |
 | SQL, PostgreSQL ou GitHub (atout) | présent | « PostgreSQL » | Juste (« ou » : PostgreSQL est dans les compétences). |
