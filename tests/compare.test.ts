@@ -388,7 +388,10 @@ describe("comparer", () => {
     it("la consigne interdit les trois déductions et exige que l'extrait nomme ce que le critère demande", () => {
       expect(CONSIGNE_COMPARAISON).toMatch(/un extrait doit nommer explicitement ce que le critère demande/);
       expect(CONSIGNE_COMPARAISON).toMatch(/ne prouve ni « développement d'interfaces web » ni « développement d'API »/);
-      expect(CONSIGNE_COMPARAISON).toMatch(/« intermediate » ne prouve pas « communication écrite en anglais »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/un niveau CECR B1 ou plus, ou « courant », « bilingue » ou « langue maternelle », prouve la lecture/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/L'écrit ou l'oral exigent une mention explicite \(« écrit », « rédaction », « oral »\) ou un niveau C1 ou plus/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/Un niveau flou sans repère CECR \(« technique », « intermediate », « notions »\) ne prouve ni l'écrit ni l'oral/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/cite le nom de la langue et son niveau, comme deux extraits séparés par « ; »/);
       expect(CONSIGNE_COMPARAISON).toMatch(/une adresse GitHub ou LinkedIn n'est pas un projet/);
     });
 
@@ -398,9 +401,49 @@ describe("comparer", () => {
       expect(await suitLaConsigne(yanis, "Développement d'API")).toMatchObject({ statut: "non_trouve" });
     });
 
-    it("niveau de langue : « elementary to intermediate » ne prouve pas la communication écrite en anglais", async () => {
-      const f: FicheCV = { ...structuredClone(yanis), langues: [{ langue: "Anglais", niveau: "elementary to intermediate" }] };
-      expect(await suitLaConsigne(f, "Communication écrite en anglais")).toMatchObject({ statut: "non_trouve" });
+    describe("niveaux de langue (fiches fictives : une seule langue, le reste repris de Yanis Fictif)", () => {
+      const avecLangue = (langue: string, niveau: string): FicheCV => ({ ...structuredClone(yanis), langues: [{ langue, niveau }] });
+      const LECTURE = "Anglais technique lu";
+      const ECRIT = "Communication écrite en anglais";
+
+      /** Réponse simulée « présent » avec le nom de la langue et le niveau comme deux extraits. */
+      async function present(f: FicheCV, critere: string, justification: string) {
+        const { client } = clientSimule({ resultats: [{ critere, statut: "present", justification }] });
+        return (await comparer(f, [critere], "modele-test", client)).resultats[0];
+      }
+
+      it("« Anglais : courant (C1) » → présent pour la lecture et pour l'écrit (C1 ou plus)", async () => {
+        const f = avecLangue("Anglais", "courant (C1)");
+        for (const critere of [LECTURE, ECRIT]) {
+          expect(await present(f, critere, "Anglais ; courant (C1)")).toMatchObject({
+            statut: "present",
+            justification: "Anglais ; courant (C1)",
+            justificationRejetee: false,
+          });
+        }
+      });
+
+      it("« Anglais : lu (B1) » → présent pour la lecture, non trouvé pour l'écrit", async () => {
+        const f = avecLangue("Anglais", "lu (B1)");
+        expect(await present(f, LECTURE, "Anglais ; lu (B1)")).toMatchObject({ statut: "present", justificationRejetee: false });
+        expect(await suitLaConsigne(f, ECRIT)).toMatchObject({ statut: "non_trouve" });
+      });
+
+      it("« English: elementary to intermediate » → non trouvé pour l'écrit", async () => {
+        expect(await suitLaConsigne(avecLangue("English", "elementary to intermediate"), ECRIT)).toMatchObject({ statut: "non_trouve" });
+      });
+
+      it("« Anglais : technique » → non trouvé pour l'écrit", async () => {
+        expect(await suitLaConsigne(avecLangue("Anglais", "technique"), ECRIT)).toMatchObject({ statut: "non_trouve" });
+      });
+
+      it("un niveau inventé (« courant (C1) » sur une fiche qui dit « technique ») est rejeté par le serveur", async () => {
+        expect(await present(avecLangue("Anglais", "technique"), ECRIT, "Anglais ; courant (C1)")).toMatchObject({
+          statut: "non_trouve",
+          justificationRejetee: true,
+          justificationRejeteeTexte: "Anglais ; courant (C1)",
+        });
+      });
     });
 
     it("adresse de profil : une adresse GitHub n'est pas un projet réalisé consultable", async () => {
