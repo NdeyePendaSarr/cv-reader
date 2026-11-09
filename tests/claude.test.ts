@@ -69,6 +69,19 @@ describe("extraire", () => {
     });
   });
 
+  it("langueDuCV : la description de l'outil la définit comme la langue du texte ; CV en anglais (Sam Placeholder) → « en »", async () => {
+    const sam = JSON.parse(readFileSync(join(import.meta.dirname, "..", "samples", "cv-02-sam-placeholder.json"), "utf8"));
+    expect(sam.langueDuCV).toBe("en");
+    const { client, create } = clientSimule(reponse([appelOutil(sam)]));
+    const r = await extraire(PDF, "modele-test", client);
+    const description = create.mock.calls[0]![0].tools[0].description as string;
+    expect(description).toMatch(/langueDuCV est la langue dans laquelle le texte du CV est rédigé/);
+    expect(description).toMatch(/jamais la nationalité, le pays ni la langue maternelle/);
+    // La consigne système, elle, reste mot pour mot celle de la spec.
+    expect(create.mock.calls[0]![0].system).toBe(CONSIGNE_SYSTEME);
+    expect(r.fiche.langueDuCV).toBe("en");
+  });
+
   it("n'envoie ni temperature, ni top_p, ni top_k, ni réglage de réflexion ou d'effort", async () => {
     const { client, create } = clientSimule(reponse([appelOutil(ficheValide())]));
     await extraire(PDF, "modele-test", client);

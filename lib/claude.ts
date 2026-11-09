@@ -36,7 +36,10 @@ const OUTIL: Anthropic.Tool = {
   description:
     "Enregistre la fiche structurée du CV fourni. Chaque champ reprend exactement le texte du CV, " +
     "sans reformulation. Une information absente ou illisible vaut null (ou une liste vide). " +
-    "Les dates restent telles qu'elles sont écrites. Appelle cet outil une seule fois, avec la fiche complète.",
+    "Les dates restent telles qu'elles sont écrites. " +
+    "langueDuCV est la langue dans laquelle le texte du CV est rédigé (« en » pour un CV écrit en anglais), " +
+    "jamais la nationalité, le pays ni la langue maternelle de la personne. " +
+    "Appelle cet outil une seule fois, avec la fiche complète.",
   input_schema: schemaPourModele(),
 };
 
