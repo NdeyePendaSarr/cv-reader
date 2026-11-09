@@ -22,8 +22,8 @@ const { POST } = await import("@/app/api/compare/route");
 const fiche = JSON.parse(readFileSync(join(import.meta.dirname, "..", "samples", "cv-01-lea-fictivia.json"), "utf8"));
 const mesures: Mesures = { modele: "modele-test", dureeMs: 900, jetonsEntree: 2000, jetonsSortie: 300, nouvelEssai: false, sansAppelOutil: 0, sortiesInvalides: 0 };
 const resultats = [
-  { critere: "Pratique de React", statut: "present", justification: "React", justificationRejetee: false },
-  { critere: "Expérience de Kotlin", statut: "non_trouve", justification: null, justificationRejetee: true },
+  { critere: "Pratique de React", statut: "present", justification: "React", justificationRejetee: false, justificationRejeteeTexte: null },
+  { critere: "Expérience de Kotlin", statut: "non_trouve", justification: null, justificationRejetee: true, justificationRejeteeTexte: "Cinq ans de Kotlin chez Exemple SAS" },
 ];
 
 const requete = (corps: unknown) =>
@@ -96,6 +96,33 @@ describe("POST /api/compare", () => {
     expect(JSON.parse(journal.mock.calls[0]![0] as string)).toMatchObject({ statut: "comparaison_impossible" });
     comparer.mockRejectedValueOnce(new ErreurExtraction("MODELE_INDISPONIBLE", "Service indisponible.", mesures));
     expect((await POST(requete({ fiche, criteres: ["React"] }))).status).toBe(502);
+  });
+
+  it("erreur inattendue dont le message contient un texte de CV → 500, et seul son nom est journalisé", async () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => {});
+    comparer.mockRejectedValueOnce(new TypeError("Léa Fictivia, lea.fictivia@example.com, 06 39 98 12 34"));
+    const reponse = await POST(requete({ fiche, criteres: ["React"] }));
+    expect(reponse.status).toBe(500);
+    expect(erreurs).toHaveBeenCalledTimes(1);
+    expect(erreurs.mock.calls[0]).toEqual(["TypeError"]);
+    const ecrit = JSON.stringify(erreurs.mock.calls);
+    for (const fragment of ["Fictivia", "@example.com", "06 39"]) expect(ecrit).not.toContain(fragment);
+    erreurs.mockRestore();
+  });
+
+  it("renvoie la justification rejetée à part, mais ne l'écrit jamais dans le journal", async () => {
+    const reponse = await POST(requete({ fiche, criteres: ["Pratique de React", "Expérience de Kotlin"] }));
+    const corps = await reponse.json();
+    expect(corps.resultats[1]).toMatchObject({
+      statut: "non_trouve",
+      justification: null,
+      justificationRejetee: true,
+      justificationRejeteeTexte: "Cinq ans de Kotlin chez Exemple SAS",
+    });
+    const ligne = journal.mock.calls[0]![0] as string;
+    expect(ligne).not.toContain("Cinq ans de Kotlin");
+    expect(ligne).not.toContain("Exemple SAS");
+    expect(Object.keys(JSON.parse(ligne))).not.toContain("justificationRejeteeTexte");
   });
 
   it("journalise des compteurs, jamais la fiche ni le texte des critères", async () => {

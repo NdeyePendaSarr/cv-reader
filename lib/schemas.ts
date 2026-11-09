@@ -102,12 +102,21 @@ export type RequeteComparaison = z.infer<typeof RequeteComparaisonSchema>;
 /**
  * Résultat renvoyé à l'interface : celui du modèle après le contrôle anti-invention du serveur.
  * `justificationRejetee` : le modèle avait répondu « présent », mais sa justification est
- * introuvable dans la fiche ; le critère est donc passé en « non trouvé ».
+ * introuvable dans la fiche ; le critère est donc passé en « non trouvé », avec `justification: null`.
+ * `justificationRejeteeTexte` : ce que le modèle avait cité, pour que la personne puisse le voir
+ * (affiché barré) ; null si rien n'a été rejeté. Jamais écrit dans le journal.
  */
-export const CritereAfficheSchema = CritereBase.extend({ justificationRejetee: z.boolean() }).refine(
-  justificationCoherente.test,
-  { error: justificationCoherente.error },
-);
+export const CritereAfficheSchema = CritereBase.extend({
+  justificationRejetee: z.boolean(),
+  justificationRejeteeTexte: Texte,
+})
+  .refine(justificationCoherente.test, { error: justificationCoherente.error })
+  .refine((r) => r.justificationRejetee === (r.justificationRejeteeTexte !== null), {
+    error: "Le texte rejeté est présent si et seulement si la justification a été rejetée",
+  })
+  .refine((r) => !r.justificationRejetee || r.statut === "non_trouve", {
+    error: "Une justification rejetée laisse le critère en « non trouvé »",
+  });
 export type CritereAffiche = z.infer<typeof CritereAfficheSchema>;
 
 /** Réponse 200 de POST /api/compare. Aucun score, aucun total. */

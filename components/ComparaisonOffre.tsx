@@ -131,6 +131,12 @@ export default function ComparaisonOffre({
                     )}
                   </span>
                 )}
+                {/* Ce que le modèle avait cité, barré : visible, mais jamais compté comme une preuve. */}
+                {r.statut === "non_trouve" && r.justificationRejeteeTexte && (
+                  <del className="text-xs text-zinc-500 dark:text-zinc-400" aria-label={`Justification rejetée : ${r.justificationRejeteeTexte}`}>
+                    « {r.justificationRejeteeTexte} »
+                  </del>
+                )}
               </li>
             ))}
           </ul>

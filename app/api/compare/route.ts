@@ -23,8 +23,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     return await traiter(request);
   } catch (erreur) {
-    // Nom et message de l'erreur seulement, jamais de contenu de la fiche.
-    console.error(erreur instanceof Error ? `${erreur.name}: ${erreur.message}` : "Erreur inconnue");
+    // Nom de l'erreur seulement, jamais son message : il pourrait contenir une valeur du CV ou de la fiche.
+    console.error(erreur instanceof Error ? erreur.name : "Erreur inconnue");
     return reponseErreur(500, "ERREUR_INTERNE", MESSAGE_ERREUR_INTERNE);
   }
 }

@@ -85,8 +85,8 @@ describe("contrôle anti-invention", () => {
       fiche,
     );
     expect(resultats).toEqual([
-      { critere: "Pratique de React", statut: "non_trouve", justification: null, justificationRejetee: true },
-      { critere: "Anglais technique lu", statut: "present", justification: "courant (C1)", justificationRejetee: false },
+      { critere: "Pratique de React", statut: "non_trouve", justification: null, justificationRejetee: true, justificationRejeteeTexte: "Cinq ans de React Native" },
+      { critere: "Anglais technique lu", statut: "present", justification: "courant (C1)", justificationRejetee: false, justificationRejeteeTexte: null },
     ]);
   });
 
@@ -192,7 +192,7 @@ describe("comparer", () => {
     it("modèle qui cite un extrait par élément mais invente « Linux » → rejeté par le serveur, non_trouve", async () => {
       const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Git ; Linux" }] });
       const r = await comparer(hugo, critere, "modele-test", client);
-      expect(r.resultats[0]).toEqual({ critere: critere[0], statut: "non_trouve", justification: null, justificationRejetee: true });
+      expect(r.resultats[0]).toEqual({ critere: critere[0], statut: "non_trouve", justification: null, justificationRejetee: true, justificationRejeteeTexte: "Git ; Linux" });
     });
 
     it("la même chose sur une fiche qui contient Git et Linux (Léa Fictivia) → présent", async () => {
@@ -225,6 +225,7 @@ describe("comparer", () => {
         statut: "non_trouve",
         justification: null,
         justificationRejetee: true,
+        justificationRejeteeTexte: "Docker ; Kubernetes",
       });
     });
 
@@ -291,7 +292,7 @@ describe("comparer", () => {
     );
 
     it("la consigne exige les dates de début et de fin, et reçoit la date du jour", async () => {
-      expect(CONSIGNE_COMPARAISON).toMatch(/Durée minimale[\s\S]*date de début et la date de fin[\s\S]*« non_trouve »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/Durée : si un critère fixe une durée minimale[\s\S]*date de début et la date de fin[\s\S]*« non_trouve »/);
       const { client, create } = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
       await comparer(fiche, critere, "modele-test", client);
       expect(create.mock.calls[0]![0].messages[0].content[0].text).toMatch(/Date du jour : \d{4}-\d{2}-\d{2}/);
@@ -325,6 +326,89 @@ describe("comparer", () => {
     });
   });
 
+  describe("durées maximales et plages : « Entre 0 et 2 ans d'expérience en développement »", () => {
+    const critere = ["Entre 0 et 2 ans d'expérience en développement"];
+    /** Fiche fictive dérivée de celle de Léa, avec une seule expérience aux dates choisies. */
+    const ficheAvecDates = (debut: string, fin: string): FicheCV => ({
+      ...structuredClone(fiche),
+      experiences: [
+        { poste: "Développeuse web", entreprise: "Atelier Exemple SAS", lieu: "Lyon", debut, fin, description: "Développement d'applications web en TypeScript." },
+      ],
+    });
+
+    it("la consigne couvre les durées maximales et les plages, et interdit une plage d'un bloc", () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(/« moins de 3 ans », « entre 0 et 2 ans »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/jamais une plage d'un bloc \(« 2025 – 2026 »\), jamais une durée calculée/);
+    });
+
+    it("durée dans la plage (2025 ; 2026) → présent, avec les deux dates comme extraits séparés", async () => {
+      const f = ficheAvecDates("2025", "2026");
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Développeuse web ; 2025 ; 2026" }] });
+      expect((await comparer(f, critere, "modele-test", client)).resultats[0]).toMatchObject({
+        statut: "present",
+        justification: "Développeuse web ; 2025 ; 2026",
+        justificationRejetee: false,
+      });
+    });
+
+    it("durée hors de la plage (2019 ; 2025) → modèle qui suit la consigne : non_trouve", async () => {
+      const f = ficheAvecDates("2019", "2025");
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "non_trouve", justification: null }] });
+      expect((await comparer(f, critere, "modele-test", client)).resultats[0]).toMatchObject({
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: false,
+      });
+    });
+
+    it("plage citée d'un bloc (« 2025 – 2026 ») → rejetée par le serveur : début et fin sont deux champs", async () => {
+      const f = ficheAvecDates("2025", "2026");
+      const { client } = clientSimule({ resultats: [{ critere: critere[0], statut: "present", justification: "Développeuse web ; 2025 – 2026" }] });
+      expect((await comparer(f, critere, "modele-test", client)).resultats[0]).toEqual({
+        critere: critere[0],
+        statut: "non_trouve",
+        justification: null,
+        justificationRejetee: true,
+        justificationRejeteeTexte: "Développeuse web ; 2025 – 2026",
+      });
+    });
+  });
+
+  describe("pas de déduction implicite (fiches fictives dérivées de celle de Yanis Fictif)", () => {
+    const yanis: FicheCV = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "public", "samples", "cv-07-yanis-fictif.json"), "utf8"),
+    ).fiche;
+
+    /** Un critère, une réponse simulée qui suit la consigne : le résultat doit être « non trouvé ». */
+    async function suitLaConsigne(f: FicheCV, critere: string) {
+      const { client } = clientSimule({ resultats: [{ critere, statut: "non_trouve", justification: null }] });
+      return (await comparer(f, [critere], "modele-test", client)).resultats[0];
+    }
+
+    it("la consigne interdit les trois déductions et exige que l'extrait nomme ce que le critère demande", () => {
+      expect(CONSIGNE_COMPARAISON).toMatch(/un extrait doit nommer explicitement ce que le critère demande/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/ne prouve ni « développement d'interfaces web » ni « développement d'API »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/« intermediate » ne prouve pas « communication écrite en anglais »/);
+      expect(CONSIGNE_COMPARAISON).toMatch(/une adresse GitHub ou LinkedIn n'est pas un projet/);
+    });
+
+    it("technologie voisine : « Application interne en React et Node.js » ne prouve ni interfaces web ni API", async () => {
+      expect(yanis.experiences[0]!.description).toContain("Application interne en React et Node.js");
+      expect(await suitLaConsigne(yanis, "Développement d'interfaces web")).toMatchObject({ statut: "non_trouve" });
+      expect(await suitLaConsigne(yanis, "Développement d'API")).toMatchObject({ statut: "non_trouve" });
+    });
+
+    it("niveau de langue : « elementary to intermediate » ne prouve pas la communication écrite en anglais", async () => {
+      const f: FicheCV = { ...structuredClone(yanis), langues: [{ langue: "Anglais", niveau: "elementary to intermediate" }] };
+      expect(await suitLaConsigne(f, "Communication écrite en anglais")).toMatchObject({ statut: "non_trouve" });
+    });
+
+    it("adresse de profil : une adresse GitHub n'est pas un projet réalisé consultable", async () => {
+      const f: FicheCV = { ...structuredClone(yanis), contact: { ...yanis.contact, github: "https://github.example.com/yanis-fictif", siteWeb: null } };
+      expect(await suitLaConsigne(f, "Un projet réalisé consultable : GitHub, site web ou démo")).toMatchObject({ statut: "non_trouve" });
+    });
+  });
+
   it("une justification inventée est rejetée après coup, sans nouvel essai", async () => {
     const invente = {
       resultats: [
@@ -336,6 +420,6 @@ describe("comparer", () => {
     const r = await comparer(fiche, CRITERES, "modele-test", client);
     expect(create).toHaveBeenCalledTimes(1);
     expect(r.justificationsRejetees).toBe(1);
-    expect(r.resultats[0]).toEqual({ critere: "Pratique de React", statut: "non_trouve", justification: null, justificationRejetee: true });
+    expect(r.resultats[0]).toEqual({ critere: "Pratique de React", statut: "non_trouve", justification: null, justificationRejetee: true, justificationRejeteeTexte: "Dix ans de React" });
   });
 });

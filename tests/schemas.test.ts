@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CritereResultatSchema, FicheCVSchema, FicheValideeSchema } from "@/lib/schemas";
+import { ComparaisonSchema, CritereAfficheSchema, CritereResultatSchema, FicheCVSchema, FicheValideeSchema } from "@/lib/schemas";
 
 /** Une fiche complète, reprise d'une réponse attendue. */
 function ficheComplete() {
@@ -104,5 +104,37 @@ describe("CritereResultatSchema", () => {
   it("refuse « non trouvé » avec une justification", () => {
     const r = { critere: "Pratique de React", statut: "non_trouve", justification: "React" };
     expect(CritereResultatSchema.safeParse(r).success).toBe(false);
+  });
+});
+
+describe("CritereAfficheSchema (réponse de /api/compare)", () => {
+  const rejete = {
+    critere: "Expérience de Kotlin",
+    statut: "non_trouve",
+    justification: null,
+    justificationRejetee: true,
+    justificationRejeteeTexte: "Kotlin pour Android",
+  };
+
+  it("accepte une justification rejetée gardée à part, critère « non trouvé »", () => {
+    expect(CritereAfficheSchema.safeParse(rejete).success).toBe(true);
+  });
+
+  it("refuse un texte rejeté sans rejet, ou un rejet sans texte", () => {
+    expect(CritereAfficheSchema.safeParse({ ...rejete, justificationRejetee: false }).success).toBe(false);
+    expect(CritereAfficheSchema.safeParse({ ...rejete, justificationRejeteeTexte: null }).success).toBe(false);
+  });
+
+  it("refuse un rejet sur un critère resté « présent »", () => {
+    expect(
+      CritereAfficheSchema.safeParse({ ...rejete, statut: "present", justification: "Kotlin" }).success,
+    ).toBe(false);
+  });
+
+  it("ComparaisonSchema, la sortie demandée au modèle, ne contient pas ces champs", () => {
+    const sortie = ComparaisonSchema.parse({
+      resultats: [{ critere: "React", statut: "present", justification: "React", justificationRejeteeTexte: "x" }],
+    });
+    expect(sortie.resultats[0]).not.toHaveProperty("justificationRejeteeTexte");
   });
 });

@@ -137,4 +137,15 @@ describe("POST /api/extract", () => {
     expect(extraire).not.toHaveBeenCalled();
     erreurs.mockRestore();
   });
+
+  it("erreur inattendue dont le message contient un texte de CV → 500, et seul son nom est journalisé", async () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => {});
+    extraire.mockRejectedValueOnce(new RangeError("Léa Fictivia, lea.fictivia@example.com, Atelier Exemple SAS"));
+    const reponse = await POST(requeteAvecFichier(await fabriquerPdf(1)));
+    expect(reponse.status).toBe(500);
+    expect(erreurs.mock.calls).toEqual([["RangeError"]]);
+    const ecrit = JSON.stringify(erreurs.mock.calls);
+    for (const fragment of ["Fictivia", "@example.com", "Atelier Exemple"]) expect(ecrit).not.toContain(fragment);
+    erreurs.mockRestore();
+  });
 });

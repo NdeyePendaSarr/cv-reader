@@ -19,9 +19,9 @@ const EXEMPLE = ["Pratique de React", "Expérience de Kotlin", "Usage quotidien 
 /** Réponse simulée de /api/compare (sans chiffre, pour vérifier qu'aucun n'est ajouté par l'écran). */
 const reponseApi = {
   resultats: [
-    { critere: "Pratique de React", statut: "present", justification: "React", justificationRejetee: false },
-    { critere: "Expérience de Kotlin", statut: "non_trouve", justification: null, justificationRejetee: true },
-    { critere: "Usage quotidien d'un assistant de code IA", statut: "present", justification: "Usage quotidien d'un assistant de code IA", justificationRejetee: false },
+    { critere: "Pratique de React", statut: "present", justification: "React", justificationRejetee: false, justificationRejeteeTexte: null },
+    { critere: "Expérience de Kotlin", statut: "non_trouve", justification: null, justificationRejetee: true, justificationRejeteeTexte: "Kotlin pour Android" },
+    { critere: "Usage quotidien d'un assistant de code IA", statut: "present", justification: "Usage quotidien d'un assistant de code IA", justificationRejetee: false, justificationRejeteeTexte: null },
   ],
 };
 
@@ -51,6 +51,11 @@ describe("ComparaisonOffre", () => {
     expect(liste.textContent).toContain("« React »");
     expect(liste.textContent).toContain("non trouvé");
     expect(liste.textContent).toContain("justification du modèle introuvable dans la fiche");
+    // La justification rejetée reste visible, barrée, sous la mention.
+    const barree = liste.querySelector("del");
+    expect(barree?.textContent).toBe("« Kotlin pour Android »");
+    expect(barree?.closest("li")?.textContent).toContain("Expérience de Kotlin");
+    expect(liste.querySelectorAll("del")).toHaveLength(1);
 
     // La requête part avec la fiche validée et les critères, un par ligne.
     const [url, options] = fetchEspion.mock.calls[0]!;
