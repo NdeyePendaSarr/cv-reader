@@ -1,7 +1,7 @@
 /**
  * Essai réel de la comparaison (lancé à la main, jamais en CI : il consomme des crédits).
  *
- * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--ajouter "critère"]… [--cv <id>]… [--sans-rapport] [--oui]
+ * Lancement : npm run eval-comparaison -- --modele claude-haiku-5-5 [--suffixe bis] [--ajouter "critère"]… [--cv <id>]… [--sans-offre] [--sans-rapport] [--oui]
  *
  * --ajouter (répétable) ajoute un critère à ceux de samples/offre.md pour cet essai seulement,
  * sans modifier le fichier.
@@ -58,12 +58,18 @@ function lireArguments() {
   }
   const ids = choisis.length > 0 ? choisis : IDS_PAR_DEFAUT;
   // --sans-rapport : affiche les résultats sans écrire de fichier (vérification ponctuelle).
-  return { modele, suffixe, ajouts, ids, sansRapport: args.includes("--sans-rapport"), sansQuestion: args.includes("--oui") };
+  // --sans-offre : n'utilise que les critères passés par --ajouter (samples/offre.md est ignoré).
+  const sansOffre = args.includes("--sans-offre");
+  if (sansOffre && ajouts.length === 0) {
+    console.error("--sans-offre demande au moins un critère --ajouter.");
+    process.exit(1);
+  }
+  return { modele, suffixe, ajouts, ids, sansOffre, sansRapport: args.includes("--sans-rapport"), sansQuestion: args.includes("--oui") };
 }
 
 async function principal(): Promise<void> {
-  const { modele, suffixe, ajouts, ids: IDS, sansRapport, sansQuestion } = lireArguments();
-  const criteresOffre = extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
+  const { modele, suffixe, ajouts, ids: IDS, sansOffre, sansRapport, sansQuestion } = lireArguments();
+  const criteresOffre = sansOffre ? [] : extraireCriteres(await readFile(join(RACINE, "samples", "offre.md"), "utf8"));
   const criteres = [...criteresOffre, ...ajouts];
   console.log(`Modèle : ${modele} · ${criteres.length} critères (dont ${ajouts.length} ajouté(s) pour cet essai) · ${IDS.length} fiches`);
   console.log(`Appels prévus à l'API : ${IDS.length} (jusqu'à ${2 * IDS.length} avec les nouveaux essais).`);
@@ -105,7 +111,12 @@ async function principal(): Promise<void> {
       );
       lignes.push("| Critère | Résultat | Justification | Avis |", "| --- | --- | --- | --- |");
       for (const res of r.resultats) {
-        const statut = res.statut === "present" ? "présent" : res.justificationRejetee ? "non trouvé (justification rejetée)" : "non trouvé";
+        const statut =
+          res.statut === "present"
+            ? "présent"
+            : res.justificationRejetee
+              ? `non trouvé (justification rejetée : « ${(res.justificationRejeteeTexte ?? "").replace(/|/g, "\|")} »)`
+              : "non trouvé";
         lignes.push(`| ${res.critere} | ${statut} | ${res.justification ? `« ${res.justification.replace(/\|/g, "\\|")} »` : "—"} | à compléter |`);
       }
       lignes.push("");
@@ -131,9 +142,11 @@ async function principal(): Promise<void> {
     "| Mesure | Valeur |",
     "| --- | --- |",
     `| Fiches comparées | ${IDS.length} × ${criteres.length} critères |`,
-    ...(ajouts.length > 0
-      ? [`| Critères ajoutés pour cet essai seulement (hors samples/offre.md) | ${ajouts.map((c) => `« ${c} »`).join(", ")} |`]
-      : []),
+    ...(sansOffre
+      ? ["| Critères | ceux de cet essai seulement (samples/offre.md non utilisé) |"]
+      : ajouts.length > 0
+        ? [`| Critères ajoutés pour cet essai seulement (hors samples/offre.md) | ${ajouts.map((c) => `« ${c} »`).join(", ")} |`]
+        : []),
     `| Justifications rejetées par le contrôle anti-invention | ${rejetees} |`,
     `| Jetons (entrée / sortie, total) | ${entree} / ${sortie} |`,
     `| Durée totale | ${(duree / 1000).toFixed(1)} s |`,
