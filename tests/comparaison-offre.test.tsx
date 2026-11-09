@@ -101,8 +101,8 @@ describe("accès à la comparaison", () => {
     await user.click(screen.getByRole("button", { name: "Valider la fiche" }));
     expect(screen.getByLabelText("Critères de l'offre")).toBeTruthy();
 
-    // Une modification après validation retire la comparaison jusqu'à la prochaine validation.
-    await user.type(screen.getByLabelText("Pays"), "!");
+    // « Modifier la fiche » annule la validation : la comparaison disparaît jusqu'à la prochaine validation.
+    await user.click(screen.getByRole("button", { name: "Modifier la fiche" }));
     expect(screen.queryByLabelText("Critères de l'offre")).toBeNull();
   });
 });

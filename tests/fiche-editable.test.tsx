@@ -170,10 +170,12 @@ describe("FicheEditable", () => {
     expect(contenu.champsCorriges).toBe(2);
   });
 
-  it("une modification après validation rend le téléchargement de nouveau impossible", async () => {
+  it("« Modifier la fiche » annule la validation : le téléchargement redevient impossible", async () => {
     const user = afficher();
     await user.click(boutonValider());
     expect(boutonTelecharger()).toHaveProperty("disabled", false);
+    await user.click(screen.getByRole("button", { name: "Modifier la fiche" }));
+    expect(boutonTelecharger()).toHaveProperty("disabled", true);
     await user.type(screen.getByLabelText("Pays"), "!");
     expect(boutonTelecharger()).toHaveProperty("disabled", true);
   });

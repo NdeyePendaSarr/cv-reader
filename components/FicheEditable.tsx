@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ComparaisonOffre from "@/components/ComparaisonOffre";
 import DialogueAVerifier from "@/components/DialogueAVerifier";
+import { amenerA } from "@/lib/defilement";
 import {
   champsAVerifierRestants,
   construireFicheValidee,
@@ -122,14 +123,45 @@ function ChampTexte({
   );
 }
 
-function Section({ titre, children, action }: { titre: string; children: ReactNode; action?: ReactNode }) {
+/** Section repliable : ouverte ou non, et ce qu'on montre à côté du titre quand elle est fermée. */
+interface Repli {
+  ouvert: boolean;
+  surBascule: (ouvert: boolean) => void;
+  resume: string;
+}
+
+function Section({ titre, children, action, repli }: { titre: string; children: ReactNode; action?: ReactNode; repli?: Repli }) {
+  if (!repli) {
+    return (
+      <fieldset className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <legend className="px-1 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{titre}</legend>
+        {children}
+        {action}
+      </fieldset>
+    );
+  }
+  // Sections longues (compétences, expériences, formations) : <details> natif, ouvrable au clavier.
   return (
-    <fieldset className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <legend className="px-1 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{titre}</legend>
-      {children}
-      {action}
-    </fieldset>
+    <details
+      open={repli.ouvert}
+      onToggle={(e) => repli.surBascule(e.currentTarget.open)}
+      className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+    >
+      <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-zinc-500 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-zinc-400">
+        {titre} <span className="font-normal normal-case">· {repli.resume}</span>
+      </summary>
+      <fieldset className="mt-3 flex flex-col gap-3">
+        <legend className="sr-only">{titre}</legend>
+        {children}
+        {action}
+      </fieldset>
+    </details>
   );
+}
+
+/** Section de la fiche à laquelle appartient une clé de champ (« competences@o2 » → « competences »). */
+function sectionDe(cle: string): string {
+  return cle.split(/[@.]/)[0]!;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +195,8 @@ export default function FicheEditable({
   modele,
   source,
   criteresExemple = [],
+  surValidation,
+  surComparaison,
 }: {
   /** Fiche extraite, telle que reçue : sert de référence pour compter les corrections. */
   fiche: FicheCV;
@@ -171,14 +205,32 @@ export default function FicheEditable({
   source: string;
   /** Critères de samples/offre.md, proposés par « Utiliser les critères d'exemple ». */
   criteresExemple?: readonly string[];
+  /** Prévient le parcours quand la fiche est validée (ou que la validation est annulée). */
+  surValidation?: (validee: FicheValidee | null) => void;
+  /** Prévient le parcours quand une comparaison a donné des résultats. */
+  surComparaison?: () => void;
 }) {
   const [edition, setEdition] = useState<FicheEnEdition>(() => depuisFiche(fiche));
   const [confirmes, setConfirmes] = useState<ReadonlySet<string>>(new Set());
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [dialogue, setDialogue] = useState(false);
-  const [validee, setValidee] = useState<FicheValidee | null>(null);
+  const [validee, setValideeLocale] = useState<FicheValidee | null>(null);
+  /** Sections repliables ouvertes ou fermées à la main ; sinon, ouvertes s'il y reste un « à vérifier ». */
+  const [ouvertures, setOuvertures] = useState<Record<string, boolean>>({});
   const focusCible = useRef<string | null>(null);
   const compteur = useRef(0);
+  const titre = useRef<HTMLHeadingElement>(null);
+
+  /** Valide ou annule la validation, et prévient le parcours (étapes, repli du choix du CV). */
+  function setValidee(v: FicheValidee | null) {
+    setValideeLocale(v);
+    surValidation?.(v);
+  }
+
+  // Fiche chargée (PDF ou CV fictif) : on l'amène à l'écran, focus sur son titre.
+  useEffect(() => {
+    amenerA(titre.current);
+  }, []);
 
   const champs = useMemo(() => listerChamps(edition), [edition]);
   const restants = useMemo(
@@ -192,9 +244,28 @@ export default function FicheEditable({
   // élément ajouté…). Chaque demande accompagne un changement d'état, donc un nouveau rendu.
   useEffect(() => {
     if (focusCible.current === null) return;
-    document.getElementById(focusCible.current)?.focus();
+    const element = document.getElementById(focusCible.current);
+    // Le titre de la fiche (« Modifier la fiche ») est amené à l'écran ; un champ reçoit seulement le focus.
+    if (focusCible.current === "titre-fiche") amenerA(element);
+    else element?.focus();
     focusCible.current = null;
   });
+
+  /** Ouverte si on l'a ouverte à la main, ou s'il y reste un « à vérifier » ; toujours ouverte s'il y a une erreur. */
+  function sectionOuverte(nom: string): boolean {
+    const prefixe = `${nom}@`;
+    const aVerif = [...clesAVerifier].some((k) => k.startsWith(prefixe));
+    const erreur = Object.keys(erreurs).some((k) => k.startsWith(prefixe));
+    return erreur || (ouvertures[nom] ?? aVerif);
+  }
+
+  function repli(nom: string, resume: string): Repli {
+    return {
+      ouvert: sectionOuverte(nom),
+      surBascule: (ouvert) => setOuvertures((avant) => (avant[nom] === ouvert ? avant : { ...avant, [nom]: ouvert })),
+      resume,
+    };
+  }
 
   /** Demande que le focus aille sur cet élément après le prochain rendu. */
   function setFocusCible(id: string | null) {
@@ -251,14 +322,21 @@ export default function FicheEditable({
 
   function finaliser() {
     setDialogue(false);
+    // La fiche se replie en résumé ; la zone de comparaison s'amène elle-même à l'écran.
     setValidee(construireFicheValidee({ originale: fiche, edition, modele, aVerifier, confirmes }));
-    setFocusCible("bouton-telecharger");
   }
 
   function revenirVerifier() {
     setDialogue(false);
     const premier = restants[0];
+    if (premier) setOuvertures((avant) => ({ ...avant, [sectionDe(premier.cle)]: true }));
     setFocusCible(premier ? idChamp(premier.cle) : null);
+  }
+
+  /** « Modifier la fiche » : la validation est annulée (règle existante), le formulaire se rouvre. */
+  function rouvrir() {
+    setValidee(null);
+    setFocusCible("titre-fiche");
   }
 
   function telecharger() {
@@ -368,18 +446,58 @@ export default function FicheEditable({
   return (
     <article aria-labelledby="titre-fiche" className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
       <header className="flex flex-col gap-2">
-        <h2 id="titre-fiche" className="text-lg font-semibold">
-          Fiche à valider : {source}
+        {/* tabIndex -1 : le titre reçoit le focus quand la fiche arrive à l'écran (lecteurs d'écran). */}
+        <h2 id="titre-fiche" ref={titre} tabIndex={-1} className="scroll-mt-4 text-lg font-semibold focus:outline-none">
+          {validee ? "Fiche validée" : "Fiche à valider"} : {source}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Vérifiez et corrigez chaque champ, puis validez. Un champ vidé est enregistré comme « non trouvé ».{" "}
-          {restants.length} valeur{restants.length > 1 ? "s" : ""} encore à vérifier.
-        </p>
-        <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-          <BadgeAVerifier /> valeur introuvable dans le texte du PDF · <BadgeNonTrouve /> absente du CV · modèle : {modele}
-        </p>
+        {!validee && (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Vérifiez et corrigez chaque champ, puis validez. Un champ vidé est enregistré comme « non trouvé ».{" "}
+              {restants.length} valeur{restants.length > 1 ? "s" : ""} encore à vérifier.
+            </p>
+            <p className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <BadgeAVerifier /> valeur introuvable dans le texte du PDF · <BadgeNonTrouve /> absente du CV · modèle : {modele}
+            </p>
+          </>
+        )}
       </header>
 
+      {validee ? (
+        // Fiche validée : repliée en résumé ; « Modifier la fiche » la rouvre et annule la validation.
+        <section aria-label="Résumé de la fiche validée" className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <dt className="text-zinc-500 dark:text-zinc-400">Nom</dt>
+            <dd>{validee.fiche.identite.nomComplet ?? "non trouvé"}</dd>
+            <dt className="text-zinc-500 dark:text-zinc-400">Titre</dt>
+            <dd>{validee.fiche.identite.titre ?? "non trouvé"}</dd>
+            <dt className="text-zinc-500 dark:text-zinc-400">Champs corrigés</dt>
+            <dd>{validee.champsCorriges}</dd>
+            <dt className="text-zinc-500 dark:text-zinc-400">Valeurs non vérifiées</dt>
+            <dd>{validee.nonVerifiees.length}</dd>
+          </dl>
+          <p className="text-xs text-zinc-600 dark:text-zinc-300">
+            Le fichier est créé dans votre navigateur ; rien n&apos;est envoyé ni conservé.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              id="bouton-telecharger"
+              type="button"
+              onClick={telecharger}
+              className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Télécharger la fiche (JSON)
+            </button>
+            <button
+              type="button"
+              onClick={rouvrir}
+              className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Modifier la fiche
+            </button>
+          </div>
+        </section>
+      ) : (
       <form
         noValidate
         onSubmit={(e) => {
@@ -417,6 +535,7 @@ export default function FicheEditable({
 
         <Section
           titre="Compétences"
+          repli={repli("competences", `${edition.competences.length} compétence${edition.competences.length > 1 ? "s" : ""}`)}
           action={boutonAjouter("Ajouter une compétence", (cleElement) => {
             modifier((b) => void b.competences.push({ cle: cleElement, origine: null, valeur: "" }));
             return `competences@${cleElement}`;
@@ -455,7 +574,7 @@ export default function FicheEditable({
           })}
         </Section>
 
-        <Section titre="Expériences">
+        <Section titre="Expériences" repli={repli("experiences", `${edition.experiences.length} expérience${edition.experiences.length > 1 ? "s" : ""}`)}>
           {listeObjets("experiences", "Expérience", LIBELLES_EXPERIENCE, edition.experiences, {
             poste: null,
             entreprise: null,
@@ -466,7 +585,7 @@ export default function FicheEditable({
           })}
         </Section>
 
-        <Section titre="Formations">
+        <Section titre="Formations" repli={repli("formations", `${edition.formations.length} formation${edition.formations.length > 1 ? "s" : ""}`)}>
           {listeObjets("formations", "Formation", LIBELLES_FORMATION, edition.formations, {
             diplome: null,
             etablissement: null,
@@ -550,12 +669,6 @@ export default function FicheEditable({
                 {nbErreurs} champ{nbErreurs > 1 ? "s" : ""} à corriger avant de valider.
               </p>
             )}
-            {validee && (
-              <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                Fiche validée : {validee.champsCorriges} champ{validee.champsCorriges > 1 ? "s" : ""} corrigé
-                {validee.champsCorriges > 1 ? "s" : ""}. Le fichier est créé dans votre navigateur ; rien n&apos;est envoyé ni conservé.
-              </p>
-            )}
           </div>
           <div className="flex flex-wrap gap-3">
             <button
@@ -565,27 +678,24 @@ export default function FicheEditable({
               Valider la fiche
             </button>
             <button
-              id="bouton-telecharger"
               type="button"
-              onClick={telecharger}
-              disabled={!validee}
-              aria-describedby={validee ? undefined : "aide-telecharger"}
+              disabled
+              aria-describedby="aide-telecharger"
               className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               Télécharger la fiche (JSON)
             </button>
           </div>
-          {!validee && (
-            <p id="aide-telecharger" className="text-xs text-zinc-500 dark:text-zinc-400">
-              Le téléchargement devient possible après la validation.
-            </p>
-          )}
+          <p id="aide-telecharger" className="text-xs text-zinc-500 dark:text-zinc-400">
+            Le téléchargement devient possible après la validation.
+          </p>
         </div>
       </form>
+      )}
 
       {/* La comparaison n'est possible qu'après la validation, et part de la fiche validée. */}
       {validee ? (
-        <ComparaisonOffre key={validee.valideeLe} fiche={validee.fiche} criteresExemple={criteresExemple} />
+        <ComparaisonOffre key={validee.valideeLe} fiche={validee.fiche} criteresExemple={criteresExemple} surResultats={surComparaison} />
       ) : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           La comparaison avec une offre devient possible après la validation de la fiche.

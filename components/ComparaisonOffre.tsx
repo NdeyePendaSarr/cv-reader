@@ -6,8 +6,9 @@
  * (libellé de la valeur `non_trouve` de l'API : ce n'est pas une preuve d'absence).
  * Aucun score, aucun pourcentage, aucun total : la décision reste humaine.
  */
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { comparerFiche } from "@/lib/api-client";
+import { amenerA } from "@/lib/defilement";
 import { criteresSaisis } from "@/lib/offre";
 import type { CritereAffiche, FicheCV } from "@/lib/schemas";
 
@@ -33,16 +34,35 @@ function erreurCriteres(criteres: string[]): string | null {
 export default function ComparaisonOffre({
   fiche,
   criteresExemple,
+  surResultats,
 }: {
   /** Fiche validée par l'humain : la comparaison ne part jamais de la fiche brute. */
   fiche: FicheCV;
   criteresExemple: readonly string[];
+  /** Prévient le parcours quand des résultats s'affichent (étape 3 cochée). */
+  surResultats?: () => void;
 }) {
   const [texte, setTexte] = useState("");
   const [etat, setEtat] = useState<Etat>({ type: "attente" });
   const idZone = useId();
   const idAide = useId();
   const enCours = etat.type === "envoi";
+  const titre = useRef<HTMLHeadingElement>(null);
+  const titreResultats = useRef<HTMLHeadingElement>(null);
+
+  // Fiche validée : la zone de comparaison apparaît et s'amène à l'écran, focus sur son titre.
+  useEffect(() => {
+    amenerA(titre.current);
+  }, []);
+
+  // Résultats reçus : on les amène à l'écran, focus sur leur titre.
+  useEffect(() => {
+    if (etat.type !== "resultats") return;
+    amenerA(titreResultats.current);
+    surResultats?.();
+    // surResultats est un rappel du parent : seul le changement d'état déclenche l'effet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etat]);
 
   async function lancer() {
     const criteres = criteresSaisis(texte);
@@ -58,7 +78,7 @@ export default function ComparaisonOffre({
 
   return (
     <section aria-labelledby="titre-comparaison" className="flex flex-col gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <h3 id="titre-comparaison" className="text-base font-semibold">
+      <h3 id="titre-comparaison" ref={titre} tabIndex={-1} className="scroll-mt-4 text-base font-semibold focus:outline-none">
         Comparer la fiche validée à une offre
       </h3>
       <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
@@ -107,6 +127,11 @@ export default function ComparaisonOffre({
           <p role="alert" className="text-sm text-red-700 dark:text-red-300">
             {etat.message}
           </p>
+        )}
+        {etat.type === "resultats" && (
+          <h4 ref={titreResultats} tabIndex={-1} className="mb-2 scroll-mt-4 text-sm font-semibold focus:outline-none">
+            Résultats, critère par critère
+          </h4>
         )}
         {etat.type === "resultats" && (
           <ul aria-label="Résultats de la comparaison" className="flex flex-col gap-3">

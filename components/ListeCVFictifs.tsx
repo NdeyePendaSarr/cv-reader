@@ -10,12 +10,13 @@ import { CV_FICTIFS } from "@/lib/samples";
 export default function ListeCVFictifs({
   disponibles,
   surChoix,
-  enCours,
+  enChargement,
 }: {
   /** Identifiants des CV dont la fiche de référence existe. */
   disponibles: readonly string[];
   surChoix: (id: string) => void;
-  enCours: boolean;
+  /** Identifiant du CV fictif en cours de chargement, ou null. */
+  enChargement: string | null;
 }) {
   const ouverts = new Set(disponibles);
   return (
@@ -28,13 +29,15 @@ export default function ListeCVFictifs({
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">
         {CV_FICTIFS.map((cv) => {
-          const actif = ouverts.has(cv.id) && !enCours;
+          const charge = enChargement === cv.id;
+          const actif = ouverts.has(cv.id) && enChargement === null;
           return (
             <li key={cv.id}>
               <button
                 type="button"
                 disabled={!actif}
                 onClick={() => surChoix(cv.id)}
+                aria-busy={charge}
                 title={ouverts.has(cv.id) ? `Voir la fiche de ${cv.nom}` : "Disponible bientôt"}
                 className={[
                   "flex w-full flex-col items-start gap-1 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left dark:border-zinc-800 dark:bg-zinc-900",
@@ -51,7 +54,7 @@ export default function ListeCVFictifs({
                 </span>
                 <span className="text-sm text-zinc-600 dark:text-zinc-300">{cv.titre}</span>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {cv.particularite}
+                  {charge ? "Chargement de la fiche…" : cv.particularite}
                   {ouverts.has(cv.id) ? "" : " · disponible bientôt"}
                 </span>
               </button>

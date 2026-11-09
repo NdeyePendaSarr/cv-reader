@@ -105,7 +105,7 @@ export default function DepotCV({ surFiche }: { surFiche: (resultat: ReponseExtr
           aria-describedby={idAide}
           className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {enCours ? "Analyse en cours…" : "Choisir un PDF"}
+          {enCours ? "Lecture du CV…" : "Choisir un PDF"}
         </button>
         <p id={idAide} className="text-sm text-zinc-500 dark:text-zinc-400">
           PDF uniquement, 4 Mo et 5 pages au plus. Le fichier n&apos;est conservé nulle part.
@@ -130,7 +130,7 @@ export default function DepotCV({ surFiche }: { surFiche: (resultat: ReponseExtr
         {etat.type === "envoi" && (
           <p className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" aria-hidden="true" />
-            Analyse de « {etat.nomFichier} »… cela peut prendre une trentaine de secondes.
+            Lecture du CV « {etat.nomFichier} »… cela peut prendre une trentaine de secondes.
           </p>
         )}
         {etat.type === "erreur" && (
