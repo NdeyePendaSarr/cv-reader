@@ -4,7 +4,7 @@
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import PageIntrouvable from "@/app/not-found";
+import PageIntrouvable, { metadata } from "@/app/not-found";
 
 afterEach(cleanup);
 
@@ -16,8 +16,11 @@ describe("page 404", () => {
     expect(document.body.textContent).not.toMatch(/could not be found/);
   });
 
-  it("donne un titre d'onglet en français", () => {
+  it("donne son titre d'onglet par les métadonnées, sans balise <title> dans la page", () => {
+    // Un <title> écrit dans le composant s'ajoutait à celui du layout (« CV Reader ») : plusieurs
+    // titres dans la page. L'export metadata est fusionné par Next.js avec celui du layout : un seul titre.
+    expect(metadata.title).toBe("Page introuvable · CV Reader");
     render(<PageIntrouvable />);
-    expect(document.querySelector("title")?.textContent).toBe("Page introuvable · CV Reader");
+    expect(document.querySelectorAll("title")).toHaveLength(0);
   });
 });
