@@ -6,7 +6,7 @@
  * (libellé de la valeur `non_trouve` de l'API : ce n'est pas une preuve d'absence).
  * Aucun score, aucun pourcentage, aucun total : la décision reste humaine.
  */
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { comparerFiche } from "@/lib/api-client";
 import { amenerA } from "@/lib/defilement";
 import { criteresSaisis } from "@/lib/offre";
@@ -50,15 +50,23 @@ export default function ComparaisonOffre({
   const titre = useRef<HTMLHeadingElement>(null);
   const titreResultats = useRef<HTMLHeadingElement>(null);
 
+  // Le focus est posé dans useLayoutEffect, pendant le rendu qui affiche la section : un useEffect
+  // s'exécute plus tard, dans une tâche planifiée à part, et laissait un instant la section affichée
+  // sans le focus (cause de l'ancien test instable, voir tests/focus-planificateur.test.tsx).
+
   // Fiche validée : la zone de comparaison apparaît et s'amène à l'écran, focus sur son titre.
-  useEffect(() => {
+  useLayoutEffect(() => {
     amenerA(titre.current);
   }, []);
 
   // Résultats reçus : on les amène à l'écran, focus sur leur titre.
+  useLayoutEffect(() => {
+    if (etat.type === "resultats") amenerA(titreResultats.current);
+  }, [etat]);
+
+  // Puis le parcours est prévenu (étape 3 cochée) : une mise à jour du parent, qui peut attendre le rendu suivant.
   useEffect(() => {
     if (etat.type !== "resultats") return;
-    amenerA(titreResultats.current);
     surResultats?.();
     // surResultats est un rappel du parent : seul le changement d'état déclenche l'effet.
     // eslint-disable-next-line react-hooks/exhaustive-deps

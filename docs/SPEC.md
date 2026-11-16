@@ -347,6 +347,7 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T4 | Fiche de plus de 64 Ko, critères de plus de 16 Ko, corps ou `Content-Length` de plus de 96 Ko → 413 `ENTREE_TROP_LOURDE`, sans quota ni modèle ; 20 critères de 200 caractères accentués passent | `tests/compare-route.test.ts` |
 | T4 | Quotas `extract` et `compare` indépendants | `tests/ratelimit.test.ts` |
 | T4 | L'interface n'affiche aucun chiffre de synthèse ; la comparaison n'est possible qu'après la validation | `tests/comparaison-offre.test.tsx` |
+| T6 | Focus posé dans le rendu même qui affiche la fiche ou les résultats (useLayoutEffect), même quand le planificateur de React est en retard | `tests/focus-planificateur.test.tsx` |
 | Mesure | Part des champs justes et des valeurs retrouvées (descriptions comprises, pour information), sur les 8 CV fictifs | `scripts/eval.ts` |
 
 ## Questions ouvertes
