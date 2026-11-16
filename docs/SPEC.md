@@ -96,7 +96,7 @@ Deux routes serveur, toutes deux soumises au quota, car toutes deux appellent le
 
 | Route | Entrée | Sortie (200) |
 | --- | --- | --- |
-| `POST /api/extract` | `multipart/form-data` : champ `file`, PDF de 4 Mo et 5 pages au plus | `{ fiche: FicheCV, aVerifier: string[], modele, dureeMs }` |
+| `POST /api/extract` | `multipart/form-data` : champ `file`, PDF de 4 Mo et 5 pages au plus ; 100 Mo au plus une fois ses flux FlateDecode décompressés, 100 000 caractères de texte au plus, lu en 15 s au plus (`lib/pdf.ts`) | `{ fiche: FicheCV, aVerifier: string[], modele, dureeMs }` |
 | `POST /api/compare` | JSON : `{ fiche: FicheCV, criteres: string[] }`, de 1 à 20 critères de 200 caractères au plus | `{ resultats: CritereAffiche[] }` : chaque `CritereResultat` plus `justificationRejetee: boolean` et `justificationRejeteeTexte: string | null` (contrôle anti-invention ; le texte rejeté n'est présent que si `justificationRejetee` est vrai, et le statut reste `non_trouve`) |
 
 Les 8 CV fictifs ne passent par aucune route : leur fiche de référence est servie depuis `public/samples/`. Ce choix est gratuit, instantané, et marche même quand le quota est atteint. Ces fiches sont de vraies sorties du modèle, produites par `scripts/eval.ts`, jamais retouchées à la main. Elles contiennent aussi leur aVerifier calculé par le script, pour que la démo montre le garde-fou en action. `aVerifier` liste les chemins des champs introuvables dans le texte du PDF (ex. `contact.telephone`, `experiences.0.entreprise`).
@@ -105,10 +105,10 @@ Toutes les erreurs ont la même forme : `{ code, message }`, avec un message en 
 
 | HTTP | `code` | Cas |
 | --- | --- | --- |
-| 400 | `FICHIER_INVALIDE` | Pas un PDF (signature `%PDF-` absente) ou fichier vide |
+| 400 | `FICHIER_INVALIDE` | Pas un PDF (signature `%PDF-` absente), fichier vide, PDF illisible, ou lecture de plus de 15 s |
 | 400 | `TROP_DE_PAGES` | Plus de 5 pages |
 | 400 | `ENTREE_INVALIDE` | Corps de requête qui ne respecte pas le schéma |
-| 413 | `FICHIER_TROP_LOURD` | Au-delà de 4 Mo (contrôle serveur, en plus de celui du navigateur) |
+| 413 | `FICHIER_TROP_LOURD` | Au-delà de 4 Mo (contrôle serveur, en plus de celui du navigateur) ; ou plus de 100 Mo une fois décompressé (bombe de décompression) ; ou plus de 100 000 caractères de texte |
 | 422 | `EXTRACTION_IMPOSSIBLE` | Extraction : sortie du modèle toujours invalide après le nouvel essai |
 | 422 | `COMPARAISON_IMPOSSIBLE` | Comparaison : sortie du modèle toujours invalide après le nouvel essai (schéma, ou nombre et ordre des critères) |
 | 429 | `QUOTA_IP` | Quota de la route atteint (5 par heure ou 15 par jour) ; en-tête `Retry-After` |
@@ -319,6 +319,7 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T1 | Un fichier sans signature `%PDF-` est refusé (400) | `tests/pdf.test.ts` |
 | T1 | Un fichier de plus de 4 Mo est refusé par le serveur (413) | `tests/pdf.test.ts` |
 | T1 | Un PDF de 6 pages est refusé (400 `TROP_DE_PAGES`) | `tests/pdf.test.ts` |
+| T1 | Bombe de décompression (1 Mo → 300 Mo, ou plusieurs flux qui dépassent 100 Mo ensemble) → 413 en quelques secondes ; texte de plus de 100 000 caractères → 413 ; délai dépassé → 400 ; flux compressé ordinaire lu normalement | `tests/pdf.test.ts` |
 | T1 | Une réponse 413 de Vercel qui n'est pas du JSON donne un message clair | `tests/api-client.test.ts` |
 | T1 | Les 8 fiches de référence respectent `FicheCVSchema` et contiennent `aVerifier` | `tests/samples.test.ts` |
 | T2 | Une fiche complète passe ; un e-mail invalide ou une chaîne vide échouent | `tests/schemas.test.ts` |
