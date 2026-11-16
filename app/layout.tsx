@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { METADONNEES } from "@/lib/metadonnees";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,11 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "CV Reader",
-  description:
-    "Extrait les informations d'un CV en PDF, les fait valider par un humain, puis les compare aux critères d'une offre.",
-};
+// Titre, description et aperçu de partage : lib/metadonnees.ts.
+export const metadata: Metadata = METADONNEES;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
