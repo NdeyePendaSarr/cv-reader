@@ -9,6 +9,12 @@
 import { useId, useRef, useState, type DragEvent } from "react";
 import { envoyerCV, type ReponseExtraction } from "@/lib/api-client";
 
+/**
+ * Section « Données personnelles » du README : où part le PDF, ce que CV Reader garde (rien),
+ * et ce qu'Anthropic indique de la conservation des données de son API, avec les sources.
+ */
+const LIEN_DONNEES = "https://github.com/NdeyePendaSarr/cv-reader#données-personnelles";
+
 type Etat =
   | { type: "attente" }
   | { type: "envoi"; nomFichier: string }
@@ -108,7 +114,17 @@ export default function DepotCV({ surFiche }: { surFiche: (resultat: ReponseExtr
           {enCours ? "Lecture du CV…" : "Choisir un PDF"}
         </button>
         <p id={idAide} className="text-sm text-zinc-500 dark:text-zinc-400">
-          PDF uniquement, 4 Mo et 5 pages au plus. Le fichier n&apos;est conservé nulle part.
+          PDF uniquement, 4 Mo et 5 pages au plus. Pour l&apos;analyse, le PDF est envoyé à Anthropic (API Claude) ;
+          CV Reader ne le conserve pas. Anthropic indique supprimer ces données sous 30 jours, sauf exceptions :{" "}
+          <a
+            href={LIEN_DONNEES}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:hover:text-zinc-200"
+          >
+            détails<span className="sr-only"> (section « Données personnelles » du README, nouvel onglet)</span>
+          </a>
+          .
         </p>
         <input
           ref={champ}
