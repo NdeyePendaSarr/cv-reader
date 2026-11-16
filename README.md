@@ -193,3 +193,7 @@ Les noms sont listés dans [`.env.example`](.env.example). Aucune valeur n'est v
 
 - [Exigences produit (PRD)](docs/PRD.md)
 - [Spécification technique](docs/SPEC.md)
+
+## Licence
+
+Code publié sous licence [MIT](LICENSE) : réutilisation, modification et redistribution libres, à condition de conserver la mention de copyright et le texte de la licence. Le logiciel est fourni sans garantie.
