@@ -10,7 +10,7 @@
  * des valeurs à vérifier, puis seulement rend la fiche téléchargeable en JSON (FicheValideeSchema).
  * Le fichier est créé dans le navigateur : aucun appel réseau, rien n'est stocké.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ComparaisonOffre from "@/components/ComparaisonOffre";
 import DialogueAVerifier from "@/components/DialogueAVerifier";
 import { amenerA } from "@/lib/defilement";
@@ -228,7 +228,9 @@ export default function FicheEditable({
   }
 
   // Fiche chargée (PDF ou CV fictif) : on l'amène à l'écran, focus sur son titre.
-  useEffect(() => {
+  // useLayoutEffect : le focus est posé pendant le rendu qui affiche la fiche, sans attendre une tâche
+  // planifiée à part (voir tests/focus-planificateur.test.tsx).
+  useLayoutEffect(() => {
     amenerA(titre.current);
   }, []);
 
@@ -242,7 +244,7 @@ export default function FicheEditable({
 
   // Le focus est déplacé après le rendu qui suit une demande (champ en erreur, champ à vérifier,
   // élément ajouté…). Chaque demande accompagne un changement d'état, donc un nouveau rendu.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focusCible.current === null) return;
     const element = document.getElementById(focusCible.current);
     // Le titre de la fiche (« Modifier la fiche ») est amené à l'écran ; un champ reçoit seulement le focus.

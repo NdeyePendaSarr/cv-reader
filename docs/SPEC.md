@@ -119,6 +119,8 @@ Toutes les erreurs ont la même forme : `{ code, message }`, avec un message en 
 
 Au-delà de 4,5 Mo, Vercel répond lui-même 413, avant la fonction, avec une réponse qui n'est pas au format `{ code, message }`. L'interface vérifie donc le `Content-Type` avant de lire le JSON, et affiche son propre message sinon.
 
+**En-têtes de sécurité (16/11).** Toutes les routes, pages comme API, reçoivent les en-têtes de `lib/entetes.ts` (via `next.config.ts`) : `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` (caméra, micro, position, paiement, USB, sujets publicitaires : refusés). CSP de production : tout depuis le site seul, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'none'`, `form-action 'none'`, aucun style en ligne ; seule concession, `script-src 'unsafe-inline'`, imposée par les scripts en ligne de Next.js dans une page pré-rendue (un nonce obligerait à rendre la page à chaque visite). `next dev` ajoute `'unsafe-eval'`, les styles en ligne et `ws:`.
+
 ## Appel au modèle
 
 Le PDF est envoyé tel quel à l'API Claude comme bloc `document`, et le modèle doit répondre en appelant un outil dont le schéma est celui de la fiche. Sa réponse est ensuite revalidée par Zod : le schéma d'outil guide le modèle, Zod décide.
@@ -347,6 +349,8 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T4 | Fiche de plus de 64 Ko, critères de plus de 16 Ko, corps ou `Content-Length` de plus de 96 Ko → 413 `ENTREE_TROP_LOURDE`, sans quota ni modèle ; 20 critères de 200 caractères accentués passent | `tests/compare-route.test.ts` |
 | T4 | Quotas `extract` et `compare` indépendants | `tests/ratelimit.test.ts` |
 | T4 | L'interface n'affiche aucun chiffre de synthèse ; la comparaison n'est possible qu'après la validation | `tests/comparaison-offre.test.tsx` |
+| T6 | Focus posé dans le rendu même qui affiche la fiche ou les résultats (useLayoutEffect), même quand le planificateur de React est en retard | `tests/focus-planificateur.test.tsx` |
+| Sécurité | En-têtes de sécurité sur toutes les routes ; CSP de production sans eval, sans style en ligne, sans autre origine que le site | `tests/entetes.test.ts` |
 | Mesure | Part des champs justes et des valeurs retrouvées (descriptions comprises, pour information), sur les 8 CV fictifs | `scripts/eval.ts` |
 
 ## Questions ouvertes
