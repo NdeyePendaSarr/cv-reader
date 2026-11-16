@@ -9,7 +9,18 @@ import { ErreurExtraction, type Mesures } from "@/lib/claude";
 import { TAILLE_MAX_OCTETS } from "@/lib/limites";
 import { fabriquerPdf, octetsTropLourds } from "./outils";
 
-const { verifierQuota, extraire } = vi.hoisted(() => ({ verifierQuota: vi.fn(), extraire: vi.fn() }));
+const { verifierQuota, extraire, verifierPdf } = vi.hoisted(() => ({
+  verifierQuota: vi.fn(),
+  extraire: vi.fn(),
+  verifierPdf: vi.fn(),
+}));
+
+// Espion sur l'ouverture complète du PDF (PDF.js) : elle garde son vrai comportement.
+vi.mock("@/lib/pdf", async (original) => {
+  const vrai = await original<typeof import("@/lib/pdf")>();
+  verifierPdf.mockImplementation(vrai.verifierPdf);
+  return { ...vrai, verifierPdf };
+});
 
 vi.mock("@/lib/ratelimit", async (original) => ({
   ...(await original<typeof import("@/lib/ratelimit")>()),
@@ -37,6 +48,7 @@ beforeEach(() => {
   vi.stubEnv("CLAUDE_MODEL", "modele-test");
   verifierQuota.mockReset().mockResolvedValue({ ok: true });
   extraire.mockReset();
+  verifierPdf.mockClear();
   journal = vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -67,9 +79,30 @@ describe("POST /api/extract", () => {
     expect(ligne).not.toContain("@example.com");
   });
 
-  it("vérifie le quota en premier : 429 QUOTA_IP avec Retry-After, sans lire le PDF ni appeler le modèle", async () => {
+  it("fichier vide, pas un PDF ou de plus de 4 Mo : refusé par les contrôles légers, sans consommer de quota", async () => {
+    for (const [octets, statut] of [
+      [new Uint8Array(0), 400],
+      [new TextEncoder().encode("pas un pdf"), 400],
+      [octetsTropLourds(TAILLE_MAX_OCTETS), 413],
+    ] as const) {
+      const reponse = await POST(requeteAvecFichier(octets));
+      expect(reponse.status).toBe(statut);
+    }
+    expect(verifierQuota).not.toHaveBeenCalled();
+    expect(verifierPdf).not.toHaveBeenCalled();
+  });
+
+  it("PDF illisible malgré sa signature : le quota est consommé avant l'ouverture, coûteuse, du PDF", async () => {
+    const reponse = await POST(requeteAvecFichier(new TextEncoder().encode("%PDF-1.7\nla suite n'est pas un PDF")));
+    expect(reponse.status).toBe(400);
+    expect(verifierQuota).toHaveBeenCalledTimes(1);
+    expect(verifierQuota.mock.invocationCallOrder[0]).toBeLessThan(verifierPdf.mock.invocationCallOrder[0]!);
+  });
+
+  it("quota épuisé : 429 QUOTA_IP avec Retry-After, sans ouvrir le PDF ni appeler le modèle", async () => {
     verifierQuota.mockResolvedValue({ ok: false, code: "QUOTA_IP", reset: Date.now() + 600_000 });
-    const reponse = await POST(requeteAvecFichier(new TextEncoder().encode("pas un pdf")));
+    const reponse = await POST(requeteAvecFichier(await fabriquerPdf(1)));
+    expect(verifierPdf).not.toHaveBeenCalled();
     expect(reponse.status).toBe(429);
     expect(Number(reponse.headers.get("retry-after"))).toBeGreaterThanOrEqual(599);
     const corps = await reponse.json();

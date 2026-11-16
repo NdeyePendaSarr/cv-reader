@@ -208,6 +208,8 @@ Essais réels du 08/11 (Claude Haiku 5.5, trois fiches de référence) : [premie
 
 Deux quotas par route (extraction et comparaison séparées) et un plafond commun de 100 appels au modèle par jour, dans Upstash Redis ; tous expirent seuls ; l'adresse IP n'y entre jamais en clair. Les quotas par IP sont vérifiés avant le plafond global, pour qu'un visiteur bloqué ne consomme pas d'analyse du jour.
 
+**Ordre dans `/api/extract` (16/11).** Contrôles légers du fichier (vide, 4 Mo, signature `%PDF-`, sans ouvrir le PDF) → quota → ouverture du PDF par PDF.js (décompression, pages, délai) → modèle. Un fichier manifestement refusé (DOCX, image, fichier vide ou trop lourd) ne consomme donc pas d'analyse ; un PDF qui porte la signature mais s'avère illisible en consomme une, car son ouverture peut coûter jusqu'à 15 s de calcul et doit rester bornée par le quota. Auparavant, le quota passait avant toute lecture du corps.
+
 ```ts
 // lib/ratelimit.ts
 import { createHmac } from "node:crypto";
@@ -320,6 +322,7 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | --- | --- | --- |
 | T0 | Aucune clé API dans le code ni dans le bundle client | CI (recherche dans `.next/static`) |
 | T1 | Un fichier sans signature `%PDF-` est refusé (400) | `tests/pdf.test.ts` |
+| T1 | Fichier vide, sans signature ou de plus de 4 Mo : refusé sans consulter le quota ; PDF illisible : quota consulté avant l'ouverture ; quota épuisé : 429 sans ouvrir le PDF | `tests/extract-route.test.ts` |
 | T1 | Un fichier de plus de 4 Mo est refusé par le serveur (413) | `tests/pdf.test.ts` |
 | T1 | Un PDF de 6 pages est refusé (400 `TROP_DE_PAGES`) | `tests/pdf.test.ts` |
 | T1 | Bombe de décompression (1 Mo → 300 Mo, ou plusieurs flux qui dépassent 100 Mo ensemble) → 413 en quelques secondes ; texte de plus de 100 000 caractères → 413 ; délai dépassé → 400 ; flux compressé ordinaire lu normalement | `tests/pdf.test.ts` |

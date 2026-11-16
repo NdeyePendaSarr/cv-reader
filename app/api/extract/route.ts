@@ -1,7 +1,7 @@
 /**
  * POST /api/extract : reçoit un CV en PDF (multipart/form-data, champ « file ») et renvoie sa fiche.
  *
- * Ordre des étapes : quota → contrôle du PDF et lecture de son texte → modèle →
+ * Ordre des étapes : contrôles légers du fichier → quota → ouverture du PDF et lecture de son texte → modèle →
  * vérification des valeurs contre le texte → journal → 200 { fiche, aVerifier, modele, dureeMs }.
  * Le PDF reste en mémoire : il n'est écrit nulle part.
  */
@@ -11,7 +11,7 @@ import { formaterDelai } from "@/lib/delai";
 import { lireVariable } from "@/lib/env";
 import { reponseErreur } from "@/lib/erreurs";
 import { journaliser } from "@/lib/log";
-import { verifierPdf } from "@/lib/pdf";
+import { controlerEntete, verifierPdf } from "@/lib/pdf";
 import { secondesAvant, verifierQuota } from "@/lib/ratelimit";
 import { cheminsAVerifier } from "@/lib/verif-texte";
 
@@ -33,19 +33,9 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 async function traiter(request: Request): Promise<Response> {
-  // 1. Quota, avant toute lecture du corps. L'IP vient de Vercel (en-tête x-real-ip) ;
-  //    en local, elle est absente et tous les appels partagent le même compteur.
-  const verdict = await verifierQuota("extract", ipAddress(request) ?? "inconnue");
-  if (!verdict.ok) {
-    const attente = secondesAvant(verdict.reset);
-    const message =
-      verdict.code === "QUOTA_IP"
-        ? `Vous avez atteint la limite d'analyses (5 par heure, 15 par jour). Réessayez dans ${formaterDelai(attente)}, ou choisissez un CV fictif.`
-        : `La démo a atteint son nombre d'analyses pour aujourd'hui. Réessayez dans ${formaterDelai(attente)}, ou choisissez un CV fictif.`;
-    return reponseErreur(429, verdict.code, message, { "Retry-After": String(attente) });
-  }
-
-  // 2. Lecture du formulaire et contrôle du PDF (signature, taille, pages), avec son texte.
+  // 1. Lecture du formulaire et contrôles légers du fichier (vide, 4 Mo, signature « %PDF- »), sans
+  //    ouvrir le PDF : un fichier manifestement refusé (DOCX, image…) ne consomme pas d'analyse.
+  //    Le corps est déjà borné par Vercel à 4,5 Mo.
   let formulaire: FormData;
   try {
     formulaire = await request.formData();
@@ -61,10 +51,27 @@ async function traiter(request: Request): Promise<Response> {
     return reponseErreur(400, "ENTREE_INVALIDE", "Aucun fichier reçu dans le champ « file ».");
   }
   const octets = new Uint8Array(await fichier.arrayBuffer());
+  const refus = controlerEntete(octets);
+  if (refus) return reponseErreur(refus.statut, refus.code, refus.message);
+
+  // 2. Quota, avant l'ouverture du PDF par PDF.js, qui peut coûter jusqu'à 15 s de calcul (lib/pdf.ts).
+  //    L'IP vient de Vercel (en-tête x-real-ip) ; en local, elle est absente et tous les appels
+  //    partagent le même compteur.
+  const verdict = await verifierQuota("extract", ipAddress(request) ?? "inconnue");
+  if (!verdict.ok) {
+    const attente = secondesAvant(verdict.reset);
+    const message =
+      verdict.code === "QUOTA_IP"
+        ? `Vous avez atteint la limite d'analyses (5 par heure, 15 par jour). Réessayez dans ${formaterDelai(attente)}, ou choisissez un CV fictif.`
+        : `La démo a atteint son nombre d'analyses pour aujourd'hui. Réessayez dans ${formaterDelai(attente)}, ou choisissez un CV fictif.`;
+    return reponseErreur(429, verdict.code, message, { "Retry-After": String(attente) });
+  }
+
+  // 3. Ouverture du PDF (décompression, pages, délai) et lecture de son texte.
   const pdf = await verifierPdf(octets);
   if (!pdf.ok) return reponseErreur(pdf.statut, pdf.code, pdf.message);
 
-  // 3. Appel au modèle (avec au plus un nouvel essai).
+  // 4. Appel au modèle (avec au plus un nouvel essai).
   const modele = lireVariable("CLAUDE_MODEL");
   let resultat;
   try {
@@ -81,10 +88,10 @@ async function traiter(request: Request): Promise<Response> {
       : reponseErreur(502, erreur.code, erreur.message);
   }
 
-  // 4. Chaque valeur courte est cherchée dans le texte du PDF.
+  // 5. Chaque valeur courte est cherchée dans le texte du PDF.
   const aVerifier = cheminsAVerifier(resultat.fiche, pdf.texte);
 
-  // 5. Journal : mesures seulement, aucun contenu du CV.
+  // 6. Journal : mesures seulement, aucun contenu du CV.
   const { fiche, ...mesures } = resultat;
   journaliser({ evenement: "extraction", statut: "ok", ...mesures, aVerifier: aVerifier.length });
 
