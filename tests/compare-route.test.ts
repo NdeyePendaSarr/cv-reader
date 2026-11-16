@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErreurExtraction, type Mesures } from "@/lib/claude";
+import { CORPS_COMPARE_MAX_OCTETS, FICHE_MAX_OCTETS, OFFRE_MAX_OCTETS } from "@/lib/limites";
 
 const { verifierQuota, comparer } = vi.hoisted(() => ({ verifierQuota: vi.fn(), comparer: vi.fn() }));
 vi.mock("@/lib/ratelimit", async (original) => ({
@@ -77,6 +78,56 @@ describe("POST /api/compare", () => {
     const pasJson = await POST(requete("{pas du json"));
     expect(pasJson.status).toBe(400);
     expect(await pasJson.json()).toMatchObject({ code: "ENTREE_INVALIDE" });
+  });
+
+  it(`fiche de plus de ${FICHE_MAX_OCTETS / 1024} Ko → 413 ENTREE_TROP_LOURDE, sans quota ni modèle`, async () => {
+    // Fiche conforme au schéma, mais avec une description démesurée.
+    const geante = {
+      ...fiche,
+      experiences: [{ ...fiche.experiences[0], description: "x".repeat(FICHE_MAX_OCTETS) }],
+    };
+    const reponse = await POST(requete({ fiche: geante, criteres: ["React"] }));
+    expect(reponse.status).toBe(413);
+    const corps = await reponse.json();
+    expect(corps.code).toBe("ENTREE_TROP_LOURDE");
+    expect(corps.message).toMatch(/fiche dépasse 64 Ko/);
+    expect(verifierQuota).not.toHaveBeenCalled();
+    expect(comparer).not.toHaveBeenCalled();
+  });
+
+  it(`offre de plus de ${OFFRE_MAX_OCTETS / 1024} Ko → 413 ENTREE_TROP_LOURDE, sans quota ni modèle`, async () => {
+    const criteres = Array.from({ length: 2000 }, (_, i) => `Critère numéro ${i + 1}`);
+    const reponse = await POST(requete({ fiche, criteres }));
+    expect(reponse.status).toBe(413);
+    const corps = await reponse.json();
+    expect(corps.code).toBe("ENTREE_TROP_LOURDE");
+    expect(corps.message).toMatch(/critères de l'offre dépassent 16 Ko/);
+    expect(verifierQuota).not.toHaveBeenCalled();
+    expect(comparer).not.toHaveBeenCalled();
+  });
+
+  it(`corps de plus de ${CORPS_COMPARE_MAX_OCTETS / 1024} Ko → 413 avant toute lecture du JSON`, async () => {
+    const reponse = await POST(requete(" ".repeat(CORPS_COMPARE_MAX_OCTETS + 1)));
+    expect(reponse.status).toBe(413);
+    expect(await reponse.json()).toMatchObject({ code: "ENTREE_TROP_LOURDE" });
+    expect(verifierQuota).not.toHaveBeenCalled();
+  });
+
+  it("Content-Length annoncé au-dessus du plafond → 413 sans lire le corps", async () => {
+    const r = new Request("http://localhost/api/compare", {
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": String(CORPS_COMPARE_MAX_OCTETS + 1) },
+      body: "{}",
+    });
+    const reponse = await POST(r);
+    expect(reponse.status).toBe(413);
+    expect(r.bodyUsed).toBe(false);
+  });
+
+  it("20 critères de 200 caractères accentués et une fiche ordinaire passent les plafonds", async () => {
+    const criteres = Array.from({ length: 20 }, () => "é".repeat(200));
+    const reponse = await POST(requete({ fiche, criteres }));
+    expect(reponse.status).toBe(200);
   });
 
   it("quota atteint → 429 avec Retry-After, sans appel au modèle", async () => {
