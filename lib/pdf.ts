@@ -201,18 +201,15 @@ const REFUS_ILLISIBLE: VerdictPdf = {
   message: "Ce PDF est illisible ou endommagé. Essayez un autre fichier.",
 };
 
+/** Refus d'un fichier (la branche « ok: false » de VerdictPdf). */
+export type RefusPdf = Extract<VerdictPdf, { ok: false }>;
+
 /**
- * Vérifie qu'un fichier est un PDF acceptable : non vide, de 4 Mo au plus,
- * avec la signature « %PDF- », de 100 Mo au plus une fois décompressé, lisible en moins de
- * `delaiMs`, de 5 pages au plus et de 100 000 caractères au plus ; si oui, renvoie aussi son texte.
- *
- * Fonction sans effet de bord : elle ne modifie pas les octets reçus et n'écrit rien.
- * Elle est asynchrone, car la lecture par unpdf l'est. `delaiMs` sert aux tests.
+ * Contrôles légers, sans ouvrir le PDF : fichier non vide, de 4 Mo au plus, avec la signature « %PDF- ».
+ * Renvoie le refus, ou null si le fichier peut être ouvert. Assez peu coûteux pour passer avant le
+ * quota : un fichier manifestement refusé ne consomme pas d'analyse (app/api/extract/route.ts).
  */
-export async function verifierPdf(
-  octets: Uint8Array,
-  { delaiMs = DELAI_LECTURE_MS }: { delaiMs?: number } = {},
-): Promise<VerdictPdf> {
+export function controlerEntete(octets: Uint8Array): RefusPdf | null {
   if (octets.byteLength === 0) {
     return {
       ok: false,
@@ -240,6 +237,23 @@ export async function verifierPdf(
       message: "Ce fichier n'est pas un PDF. Seuls les CV au format PDF sont acceptés.",
     };
   }
+  return null;
+}
+
+/**
+ * Vérifie qu'un fichier est un PDF acceptable : non vide, de 4 Mo au plus,
+ * avec la signature « %PDF- », de 100 Mo au plus une fois décompressé, lisible en moins de
+ * `delaiMs`, de 5 pages au plus et de 100 000 caractères au plus ; si oui, renvoie aussi son texte.
+ *
+ * Fonction sans effet de bord : elle ne modifie pas les octets reçus et n'écrit rien.
+ * Elle est asynchrone, car la lecture par unpdf l'est. `delaiMs` sert aux tests.
+ */
+export async function verifierPdf(
+  octets: Uint8Array,
+  { delaiMs = DELAI_LECTURE_MS }: { delaiMs?: number } = {},
+): Promise<VerdictPdf> {
+  const refus = controlerEntete(octets);
+  if (refus) return refus;
 
   // Barrière 1 : taille décompressée, avant que PDF.js ne décompresse quoi que ce soit.
   if (depasseTailleDecompressee(octets)) return REFUS_DECOMPRESSE;

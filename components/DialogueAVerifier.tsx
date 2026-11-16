@@ -55,7 +55,7 @@ export default function DialogueAVerifier({
         <p id="texte-dialogue-a-verifier" className="text-sm text-zinc-600 dark:text-zinc-300">
           {pluriel ? "Ces valeurs n'ont pas été retrouvées" : "Cette valeur n'a pas été retrouvée"} dans le texte du PDF,
           et {pluriel ? "vous ne les avez ni confirmées ni corrigées" : "vous ne l'avez ni confirmée ni corrigée"}.
-          Vous pouvez revenir les vérifier, ou valider la fiche telle quelle.
+          Vous pouvez revenir {pluriel ? "les" : "la"} vérifier, ou valider la fiche telle quelle.
         </p>
         <div className="flex flex-wrap justify-end gap-3">
           <button

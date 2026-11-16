@@ -34,26 +34,30 @@ function criteresExemple(): string[] {
 export default function Accueil() {
   return (
     <div className="flex flex-1 flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      {/* Bandeau d'avertissement, visible en permanence en haut de la page. */}
-      <div
-        role="note"
-        className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
-      >
-        Démo : n&apos;envoyez pas de vrai CV, utilisez les CV fictifs.
-      </div>
+      {/* Bandeau d'avertissement, visible en permanence en haut de la page, dans le repère d'en-tête
+          (banner) : tout le contenu de la page est ainsi rangé dans un repère. */}
+      <header>
+        <div
+          role="note"
+          className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+        >
+          Démo : n&apos;envoyez pas de vrai CV, utilisez les CV fictifs.
+        </div>
+      </header>
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-16">
-        <header className="flex flex-col gap-4">
+      {/* Sur un téléphone, titre et marges plus serrés : le bouton « Choisir un PDF » reste visible sans défiler. */}
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-8 sm:gap-12 sm:py-16">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <p className="text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-            Lecteur de CV · en construction
+            Lecteur de CV
           </p>
-          <h1 className="text-5xl font-semibold tracking-tight">CV Reader</h1>
-          <p className="text-lg leading-8 text-zinc-600 dark:text-zinc-300">
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">CV Reader</h1>
+          <p className="text-base leading-7 text-zinc-600 sm:text-lg sm:leading-8 dark:text-zinc-300">
             CV Reader extrait les informations d&apos;un CV en PDF, vous laisse
             vérifier et corriger chaque champ, puis compare la fiche validée aux
             critères d&apos;une offre. La décision reste humaine.
           </p>
-        </header>
+        </div>
 
         <ParcoursCV disponibles={cvFictifsDisponibles()} criteresExemple={criteresExemple()} />
       </main>

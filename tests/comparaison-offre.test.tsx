@@ -36,6 +36,25 @@ afterEach(() => {
 });
 
 describe("ComparaisonOffre", () => {
+  it("critères en erreur : la zone est marquée invalide et reliée au message ; l'erreur corrigée, la marque disparaît", async () => {
+    const user = userEvent.setup();
+    render(<ComparaisonOffre fiche={fiche} criteresExemple={EXEMPLE} />);
+    const zone = screen.getByLabelText("Critères de l'offre");
+    expect(zone.getAttribute("aria-invalid")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Comparer" }));
+    const erreur = screen.getByRole("alert");
+    expect(erreur.textContent).toMatch(/au moins un critère/);
+    expect(zone.getAttribute("aria-invalid")).toBe("true");
+    expect(zone.getAttribute("aria-describedby")?.split(" ")).toContain(erreur.id);
+    expect(fetchEspion).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Utiliser les critères d'exemple" }));
+    await user.click(screen.getByRole("button", { name: "Comparer" }));
+    await screen.findByRole("list", { name: "Résultats de la comparaison" });
+    expect(zone.getAttribute("aria-invalid")).toBeNull();
+  });
+
   it("charge les critères d'exemple, compare, et affiche « présent » ou « non trouvé dans la fiche » par critère", async () => {
     const user = userEvent.setup();
     render(<ComparaisonOffre fiche={fiche} criteresExemple={EXEMPLE} />);

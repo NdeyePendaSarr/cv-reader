@@ -19,7 +19,9 @@ const LONGUEUR_MAX = 200;
 type Etat =
   | { type: "attente" }
   | { type: "envoi" }
-  | { type: "erreur"; message: string }
+  // surCriteres : l'erreur vient de la saisie des critères (la zone est alors marquée invalide),
+  // et non du serveur (service indisponible, quota…).
+  | { type: "erreur"; message: string; surCriteres: boolean }
   | { type: "resultats"; resultats: CritereAffiche[] };
 
 /** Contrôle des critères dans le navigateur, avant l'envoi (le serveur refait le même). */
@@ -46,7 +48,10 @@ export default function ComparaisonOffre({
   const [etat, setEtat] = useState<Etat>({ type: "attente" });
   const idZone = useId();
   const idAide = useId();
+  const idErreur = useId();
   const enCours = etat.type === "envoi";
+  /** Erreur de saisie des critères : la zone de texte est marquée invalide et reliée au message. */
+  const erreurSaisie = etat.type === "erreur" && etat.surCriteres;
   const titre = useRef<HTMLHeadingElement>(null);
   const titreResultats = useRef<HTMLHeadingElement>(null);
 
@@ -76,12 +81,16 @@ export default function ComparaisonOffre({
     const criteres = criteresSaisis(texte);
     const erreur = erreurCriteres(criteres);
     if (erreur) {
-      setEtat({ type: "erreur", message: erreur });
+      setEtat({ type: "erreur", message: erreur, surCriteres: true });
       return;
     }
     setEtat({ type: "envoi" });
     const resultat = await comparerFiche(fiche, criteres);
-    setEtat(resultat.ok ? { type: "resultats", resultats: resultat.donnees.resultats } : { type: "erreur", message: resultat.message });
+    setEtat(
+      resultat.ok
+        ? { type: "resultats", resultats: resultat.donnees.resultats }
+        : { type: "erreur", message: resultat.message, surCriteres: false },
+    );
   }
 
   return (
@@ -102,7 +111,8 @@ export default function ComparaisonOffre({
           rows={6}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
-          aria-describedby={idAide}
+          aria-invalid={erreurSaisie ? true : undefined}
+          aria-describedby={erreurSaisie ? `${idAide} ${idErreur}` : idAide}
           className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 focus-visible:outline-2 focus-visible:outline-indigo-600"
         />
         <p id={idAide} className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -132,7 +142,7 @@ export default function ComparaisonOffre({
       <div aria-live="polite">
         {etat.type === "envoi" && <p className="text-sm text-zinc-600 dark:text-zinc-300">Comparaison en cours…</p>}
         {etat.type === "erreur" && (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+          <p id={idErreur} role="alert" className="text-sm text-red-700 dark:text-red-300">
             {etat.message}
           </p>
         )}

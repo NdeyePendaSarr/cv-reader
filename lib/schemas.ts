@@ -11,6 +11,12 @@
  */
 import { z } from "zod";
 
+// Sans ce réglage, Zod essaie `new Function("")` pour savoir s'il peut compiler ses validations.
+// La CSP du site interdit eval (lib/entetes.ts) : l'essai échoue sans dommage, mais le navigateur le
+// signale comme une violation. En mode jitless, Zod valide sans compiler et ne fait pas l'essai.
+// Ce module est chargé par le navigateur comme par le serveur, avant toute validation.
+z.config({ jitless: true });
+
 /** Texte recopié du CV, ou null s'il est absent. Jamais de chaîne vide. */
 const Texte = z.string().trim().min(1).nullable();
 
