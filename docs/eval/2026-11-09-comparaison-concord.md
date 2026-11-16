@@ -13,7 +13,7 @@ Produit par `scripts/eval-comparaison.ts` : fiches de référence de trois CV fi
 | Durée totale | 7.3 s |
 | Coût estimé | 0.0011 $ |
 
-**Avis non relus par l'autrice.** Colonne « Avis » rédigée avec le rapport, d'après la fiche de référence de Yanis Fictif (`public/samples/cv-07-yanis-fictif.json`).
+**Avis relus et validés par l'autrice le 09/11/2026.** Colonne « Avis » rédigée avec le rapport, d'après la fiche de référence de Yanis Fictif (`public/samples/cv-07-yanis-fictif.json`).
 
 Réglages de la consigne au moment de l'essai (T4-sexies) : durées minimales, maximales et plages prouvées par les dates de début et de fin citées séparément ; aucune déduction implicite (règle 7) ; seule équivalence admise : un nom précis pour la catégorie nommée (règle 8). Quinze critères propres à cet essai, `samples/offre.md` non utilisé.
 
@@ -27,7 +27,7 @@ Réglages de la consigne au moment de l'essai (T4-sexies) : durées minimales, m
 - **Entre 0 et 2 ans** : « non trouvé », correct, puisque l'expérience de développement dépasse quatre ans.
 - **Projet consultable** : « non trouvé », juste : un site personnel ou une adresse de profil n'est pas un projet (règle 7, confirmée par l'autrice le 09/11). Le critère était ambigu ; formulation proposée : « Lien vers un projet réalisé : dépôt, démo ou site du projet ».
 - **Effet de la règle 7** : le modèle devient strict ; HTML et CSS sortent « non trouvé » faute d'être écrits, alors qu'un développeur full-stack les connaît probablement. Ce sont des « non trouvé » au sens de la fiche, pas des preuves d'absence.
-- Limites : une seule exécution, une seule fiche fictive, avis non relus.
+- Limites : une seule exécution, une seule fiche fictive.
 
 ## Yanis Fictif (Cas de test : mise en page sur deux colonnes)
 
