@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { ComparaisonSchema, CritereAfficheSchema, CritereResultatSchema, FicheCVSchema, FicheValideeSchema } from "@/lib/schemas";
 
 /** Une fiche complète, reprise d'une réponse attendue. */
@@ -9,6 +10,14 @@ function ficheComplete() {
     readFileSync(join(import.meta.dirname, "..", "samples", "cv-01-lea-fictivia.json"), "utf8"),
   );
 }
+
+describe("Zod sous la CSP stricte", () => {
+  it("le mode jitless est actif dès l'import des schémas : aucune sonde new Function, donc aucune violation de CSP", () => {
+    expect(z.config().jitless).toBe(true);
+    // Les schémas restent validés normalement, sans compilation.
+    expect(FicheCVSchema.safeParse(ficheComplete()).success).toBe(true);
+  });
+});
 
 describe("FicheCVSchema", () => {
   it("accepte une fiche complète", () => {
