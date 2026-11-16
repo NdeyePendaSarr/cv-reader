@@ -1,6 +1,14 @@
+import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { PAGES_MAX, TAILLE_MAX_OCTETS, verifierPdf } from "@/lib/pdf";
-import { fabriquerPdf, octetsTropLourds } from "./outils";
+import {
+  DECOMPRESSE_MAX_OCTETS,
+  DELAI_LECTURE_MS,
+  PAGES_MAX,
+  TAILLE_MAX_OCTETS,
+  TEXTE_MAX_CARACTERES,
+  verifierPdf,
+} from "@/lib/pdf";
+import { fabriquerBombeFlate, fabriquerPdf, fabriquerPdfBrut, fluxTexteLong, octetsTropLourds } from "./outils";
 
 describe("verifierPdf", () => {
   it("accepte un PDF valide et renvoie son nombre de pages et son texte, en une seule lecture", async () => {
@@ -50,6 +58,51 @@ describe("verifierPdf", () => {
     const verdict = await verifierPdf(await fabriquerPdf(6));
     expect(verdict).toMatchObject({ ok: false, code: "TROP_DE_PAGES", statut: 400 });
     if (!verdict.ok) expect(verdict.message).toMatch(/6 pages/);
+  });
+
+  it("lit le texte d'un flux compressé ordinaire (FlateDecode) sous les plafonds", async () => {
+    const contenu = new TextEncoder().encode("BT /F1 12 Tf 50 700 Td (Compresse mais lisible) Tj ET");
+    const pdf = fabriquerPdfBrut([{ dico: "/Filter /FlateDecode", donnees: new Uint8Array(deflateSync(contenu)) }]);
+    const verdict = await verifierPdf(pdf);
+    expect(verdict).toMatchObject({ ok: true, pages: 1 });
+    if (verdict.ok) expect(verdict.texte).toContain("Compresse mais lisible");
+  });
+
+  it("refuse la bombe de l'audit (1 Mo qui se décompresse en 300 Mo) : 413, vite et sans lire le texte", async () => {
+    const bombe = await fabriquerBombeFlate(300);
+    const pdf = fabriquerPdfBrut([bombe]);
+    expect(pdf.byteLength).toBeLessThan(2 * 1024 * 1024);
+    const debut = Date.now();
+    const verdict = await verifierPdf(pdf);
+    expect(Date.now() - debut).toBeLessThan(10_000);
+    expect(verdict).toMatchObject({ ok: false, code: "FICHIER_TROP_LOURD", statut: 413 });
+    if (!verdict.ok) expect(verdict.message).toMatch(/décompressé/);
+  }, 60_000);
+
+  it("additionne les flux : plusieurs flux sous le plafond chacun, au-dessus ensemble → 413", async () => {
+    const morceau = await fabriquerBombeFlate(40);
+    const pdf = fabriquerPdfBrut([morceau, morceau, morceau]);
+    const verdict = await verifierPdf(pdf);
+    expect(verdict).toMatchObject({ ok: false, code: "FICHIER_TROP_LOURD", statut: 413 });
+  }, 60_000);
+
+  it(`refuse un texte de plus de ${TEXTE_MAX_CARACTERES} caractères, même non compressé (413)`, async () => {
+    const pdf = fabriquerPdfBrut([fluxTexteLong(TEXTE_MAX_CARACTERES + 1000)]);
+    expect(pdf.byteLength).toBeLessThan(DECOMPRESSE_MAX_OCTETS);
+    const verdict = await verifierPdf(pdf);
+    expect(verdict).toMatchObject({ ok: false, code: "FICHIER_TROP_LOURD", statut: 413 });
+    if (!verdict.ok) expect(verdict.message).toMatch(/caractères/);
+  });
+
+  it("refuse une lecture qui dépasse le délai (400 FICHIER_INVALIDE)", async () => {
+    const verdict = await verifierPdf(await fabriquerPdf(PAGES_MAX), { delaiMs: 0 });
+    expect(verdict).toMatchObject({ ok: false, code: "FICHIER_INVALIDE", statut: 400 });
+    if (!verdict.ok) expect(verdict.message).toMatch(/trop de temps/);
+  });
+
+  it(`garde un délai de lecture par défaut de ${DELAI_LECTURE_MS / 1000} s, sous la durée maximale de la route`, () => {
+    expect(DELAI_LECTURE_MS).toBeGreaterThan(0);
+    expect(DELAI_LECTURE_MS).toBeLessThan(120_000);
   });
 
   it("ne modifie pas les octets reçus", async () => {

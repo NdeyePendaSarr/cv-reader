@@ -12,6 +12,14 @@ CV Reader extrait les informations d'un CV en PDF (identité, compétences, exp�
 
 Limite de 4 Mo, imposée par l'hébergement ; 5 Mo possibles avec un envoi direct vers un stockage, prévu en évolution.
 
+## Données personnelles
+
+Le PDF déposé est lu en mémoire puis envoyé à l'API Claude d'Anthropic pour l'extraction ; la fiche validée est envoyée de même pour la comparaison. CV Reader n'écrit ni le PDF ni la fiche nulle part : ni disque, ni base de données, ni journal (le journal ne contient que des compteurs).
+
+Côté Anthropic, la politique commerciale indique que les entrées et sorties de l'API sont supprimées sous 30 jours, sauf contenu signalé par ses systèmes de sécurité (jusqu'à 2 ans), obligation légale ou accord particulier ([politique de conservation des données commerciales](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data)). Sa documentation technique dit que ces données ne servent pas à entraîner ses modèles sans accord exprès ([API et conservation des données](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)). Les deux pages ne décrivent pas la conservation de la même façon : la documentation technique indique que le contenu n'est pas conservé par défaut, hors modèles désignés « Covered Models » (Claude Haiku 5.5, utilisé ici, n'en fait pas partie) ; ce README retient la formulation la plus prudente.
+
+CV Reader ne peut pas garantir davantage que ces engagements, qui peuvent évoluer : sources consultées le 16/11/2026. C'est pourquoi la démo demande de n'utiliser que des CV fictifs.
+
 ## Pile
 
 - Next.js (App Router), TypeScript, React

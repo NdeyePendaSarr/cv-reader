@@ -96,8 +96,8 @@ Deux routes serveur, toutes deux soumises au quota, car toutes deux appellent le
 
 | Route | Entrée | Sortie (200) |
 | --- | --- | --- |
-| `POST /api/extract` | `multipart/form-data` : champ `file`, PDF de 4 Mo et 5 pages au plus | `{ fiche: FicheCV, aVerifier: string[], modele, dureeMs }` |
-| `POST /api/compare` | JSON : `{ fiche: FicheCV, criteres: string[] }`, de 1 à 20 critères de 200 caractères au plus | `{ resultats: CritereAffiche[] }` : chaque `CritereResultat` plus `justificationRejetee: boolean` et `justificationRejeteeTexte: string | null` (contrôle anti-invention ; le texte rejeté n'est présent que si `justificationRejetee` est vrai, et le statut reste `non_trouve`) |
+| `POST /api/extract` | `multipart/form-data` : champ `file`, PDF de 4 Mo et 5 pages au plus ; 100 Mo au plus une fois ses flux FlateDecode décompressés, 100 000 caractères de texte au plus, lu en 15 s au plus (`lib/pdf.ts`) | `{ fiche: FicheCV, aVerifier: string[], modele, dureeMs }` |
+| `POST /api/compare` | JSON : `{ fiche: FicheCV, criteres: string[] }`, de 1 à 20 critères de 200 caractères au plus ; corps de 96 Ko, fiche de 64 Ko et critères de 16 Ko au plus (JSON en UTF-8, `lib/limites.ts`) | `{ resultats: CritereAffiche[] }` : chaque `CritereResultat` plus `justificationRejetee: boolean` et `justificationRejeteeTexte: string | null` (contrôle anti-invention ; le texte rejeté n'est présent que si `justificationRejetee` est vrai, et le statut reste `non_trouve`) |
 
 Les 8 CV fictifs ne passent par aucune route : leur fiche de référence est servie depuis `public/samples/`. Ce choix est gratuit, instantané, et marche même quand le quota est atteint. Ces fiches sont de vraies sorties du modèle, produites par `scripts/eval.ts`, jamais retouchées à la main. Elles contiennent aussi leur aVerifier calculé par le script, pour que la démo montre le garde-fou en action. `aVerifier` liste les chemins des champs introuvables dans le texte du PDF (ex. `contact.telephone`, `experiences.0.entreprise`).
 
@@ -105,10 +105,11 @@ Toutes les erreurs ont la même forme : `{ code, message }`, avec un message en 
 
 | HTTP | `code` | Cas |
 | --- | --- | --- |
-| 400 | `FICHIER_INVALIDE` | Pas un PDF (signature `%PDF-` absente) ou fichier vide |
+| 400 | `FICHIER_INVALIDE` | Pas un PDF (signature `%PDF-` absente), fichier vide, PDF illisible, ou lecture de plus de 15 s |
 | 400 | `TROP_DE_PAGES` | Plus de 5 pages |
 | 400 | `ENTREE_INVALIDE` | Corps de requête qui ne respecte pas le schéma |
-| 413 | `FICHIER_TROP_LOURD` | Au-delà de 4 Mo (contrôle serveur, en plus de celui du navigateur) |
+| 413 | `FICHIER_TROP_LOURD` | Au-delà de 4 Mo (contrôle serveur, en plus de celui du navigateur) ; ou plus de 100 Mo une fois décompressé (bombe de décompression) ; ou plus de 100 000 caractères de texte |
+| 413 | `ENTREE_TROP_LOURDE` | `/api/compare` : corps de plus de 96 Ko, fiche de plus de 64 Ko ou critères de plus de 16 Ko ; contrôlé avant le schéma, sans consommer de quota |
 | 422 | `EXTRACTION_IMPOSSIBLE` | Extraction : sortie du modèle toujours invalide après le nouvel essai |
 | 422 | `COMPARAISON_IMPOSSIBLE` | Comparaison : sortie du modèle toujours invalide après le nouvel essai (schéma, ou nombre et ordre des critères) |
 | 429 | `QUOTA_IP` | Quota de la route atteint (5 par heure ou 15 par jour) ; en-tête `Retry-After` |
@@ -195,7 +196,7 @@ La comparaison part de la fiche **validée par l'humain**, jamais du PDF : elle 
 - **Pas de déduction implicite (décision du 09/11, T4-sexies) :** un extrait doit nommer explicitement ce que le critère demande. Le modèle ne déduit pas une compétence d'une technologie voisine (une application en React et Node.js ne prouve ni « développement d'interfaces web » ni « développement d'API »), ni un projet réalisé d'une adresse de profil. **Niveaux de langue** (précisés le 09/11) : un niveau CECR B1 ou plus, ou « courant », « bilingue » ou « langue maternelle », prouve la lecture ; l'écrit ou l'oral exigent une mention explicite (« écrit », « rédaction », « oral ») ou un niveau C1 ou plus ; un niveau flou sans repère CECR (« technique », « intermediate », « notions ») ne prouve ni l'écrit ni l'oral. La justification cite le nom de la langue et son niveau, deux champs de la fiche, comme deux extraits séparés par « ; ». Seule équivalence admise : un nom précis pour la catégorie que le critère nomme (PostgreSQL pour « bases de données SQL »). C'est une règle de la consigne : le serveur ne peut pas la vérifier.
 - **Contrôle anti-invention :** chaque extrait de la justification (séparés par « ; ») doit apparaître dans **un** champ de la fiche (descriptions comprises), avec la normalisation de `verif-texte` (NFKC, minuscules, espaces fusionnés). La recherche se fait champ par champ, pour qu'un extrait ne puisse pas coller deux champs voisins ; un extrait coupé (« […] », « … ») n'apparaît pas tel quel, il est donc rejeté. Sinon, le critère passe en `non_trouve`, sa justification devient `null`, et il porte `justificationRejetee: true`. Le texte cité par le modèle est renvoyé à part, dans `justificationRejeteeTexte` (09/11, T4-sexies) : l'interface affiche « justification du modèle introuvable dans la fiche », puis ce texte barré. Il n'entre jamais dans le journal.
 - Sortie toujours invalide après le nouvel essai : `422 COMPARAISON_IMPOSSIBLE`.
-- Ordre dans la route : corps validé par Zod (une requête invalide ne consomme pas de quota) → quota `compare` → modèle → contrôle anti-invention → journal (compteurs seulement : nombre de critères, justifications rejetées) → 200.
+- Ordre dans la route : tailles du corps, de la fiche et des critères (413 `ENTREE_TROP_LOURDE`), puis corps validé par Zod (une requête invalide ou trop lourde ne consomme pas de quota) → quota `compare` → modèle → contrôle anti-invention → journal (compteurs seulement : nombre de critères, justifications rejetées) → 200.
 - La comparaison n'est proposée qu'après la validation de la fiche ; une modification ultérieure la retire jusqu'à la prochaine validation. Les critères d'exemple viennent de `samples/offre.md`, lus à la compilation de la page.
 - Aucun score, aucun pourcentage, aucun total, aucun classement. L'écran affiche : « Aide à la lecture. La décision reste humaine. »
 
@@ -319,6 +320,7 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T1 | Un fichier sans signature `%PDF-` est refusé (400) | `tests/pdf.test.ts` |
 | T1 | Un fichier de plus de 4 Mo est refusé par le serveur (413) | `tests/pdf.test.ts` |
 | T1 | Un PDF de 6 pages est refusé (400 `TROP_DE_PAGES`) | `tests/pdf.test.ts` |
+| T1 | Bombe de décompression (1 Mo → 300 Mo, ou plusieurs flux qui dépassent 100 Mo ensemble) → 413 en quelques secondes ; texte de plus de 100 000 caractères → 413 ; délai dépassé → 400 ; flux compressé ordinaire lu normalement | `tests/pdf.test.ts` |
 | T1 | Une réponse 413 de Vercel qui n'est pas du JSON donne un message clair | `tests/api-client.test.ts` |
 | T1 | Les 8 fiches de référence respectent `FicheCVSchema` et contiennent `aVerifier` | `tests/samples.test.ts` |
 | T2 | Une fiche complète passe ; un e-mail invalide ou une chaîne vide échouent | `tests/schemas.test.ts` |
@@ -342,6 +344,7 @@ Les tests Vitest n'appellent jamais l'API réelle : le modèle et Redis sont sim
 | T4 | « Présent » sans justification, ou « non trouvé » avec, est rejeté | `tests/schemas.test.ts`, `tests/compare.test.ts` |
 | T4 | Nombre ou ordre des critères différents → sortie invalide, puis nouvel essai | `tests/compare.test.ts` |
 | T4 | 21 critères → 400 `ENTREE_INVALIDE`, sans quota ni appel au modèle | `tests/compare-route.test.ts` |
+| T4 | Fiche de plus de 64 Ko, critères de plus de 16 Ko, corps ou `Content-Length` de plus de 96 Ko → 413 `ENTREE_TROP_LOURDE`, sans quota ni modèle ; 20 critères de 200 caractères accentués passent | `tests/compare-route.test.ts` |
 | T4 | Quotas `extract` et `compare` indépendants | `tests/ratelimit.test.ts` |
 | T4 | L'interface n'affiche aucun chiffre de synthèse ; la comparaison n'est possible qu'après la validation | `tests/comparaison-offre.test.tsx` |
 | Mesure | Part des champs justes et des valeurs retrouvées (descriptions comprises, pour information), sur les 8 CV fictifs | `scripts/eval.ts` |

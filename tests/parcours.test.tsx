@@ -77,6 +77,18 @@ describe("parcours en trois étapes", () => {
     expect(etapes()).toEqual({ enCours: "1.Choisir un CV", terminees: [] });
   });
 
+  it("informe, à côté du dépôt, que le PDF part chez Anthropic et n'est pas conservé par CV Reader", () => {
+    afficherParcours();
+    const aide = screen.getByText(/PDF uniquement/);
+    expect(aide.textContent).toMatch(/envoyé à Anthropic \(API Claude\)/);
+    expect(aide.textContent).toMatch(/CV Reader ne le conserve pas/);
+    expect(aide.textContent).toMatch(/sous 30 jours, sauf exceptions/);
+    expect(aide.textContent).not.toMatch(/nulle part/);
+    const lien = within(aide).getByRole("link", { name: /détails/ });
+    expect(lien.getAttribute("href")).toBe("https://github.com/NdeyePendaSarr/cv-reader#données-personnelles");
+    expect(lien.getAttribute("rel")).toContain("noopener");
+  });
+
   it("CV fictif chargé → défilement vers « Fiche à valider », focus sur le titre, choix replié en une ligne", async () => {
     const user = afficherParcours();
     await user.click(screen.getByRole("button", { name: /Léa Fictivia/ }));

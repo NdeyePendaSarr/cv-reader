@@ -9,6 +9,8 @@ export type CodeErreur =
   | "TROP_DE_PAGES"
   | "ENTREE_INVALIDE"
   | "FICHIER_TROP_LOURD"
+  // POST /api/compare : fiche, critères ou corps au-delà des plafonds de lib/limites.ts (413).
+  | "ENTREE_TROP_LOURDE"
   | "EXTRACTION_IMPOSSIBLE"
   | "COMPARAISON_IMPOSSIBLE"
   | "QUOTA_IP"
